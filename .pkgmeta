@@ -1,0 +1,4 @@
+package-as: Sintezza_Execute
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

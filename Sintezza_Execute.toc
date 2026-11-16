@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: Sintezza Execute
+## Notes: Execute thresholds and icons on enemy nameplates.
+## Notes-ruRU: Пороги и значки добивания на вражеских неймплейтах.
+## Author: Sintezza
+## Version: 1.4.5
+## Dependencies: Sintezza_Theme
+## OptionalDeps: EllesmereUINameplates, Sintezza_UI, ShadowpriestExecute
+## SavedVariables: Sintezza_ExecuteDB
+## IconTexture: Interface\AddOns\Sintezza_Execute\Textures\Icon
+## X-License: MIT
+
+Locales.lua
+Damage.lua
+Nameplates.lua
+Options.lua
+Minimap.lua
+Core.lua
