@@ -20,9 +20,13 @@ See when an enemy enters the health range of Shadow Word: Death, Execute, Hammer
 
 For Shadow Word: Death, the threshold uses the lowest damage in your learned spell's tooltip and a configurable buffer. Warrior and Paladin thresholds are 20% health or lower. For a Warlock with Decimation and Soul Fire learned, the marker shows the phase below 35%. Range, resources, cooldowns, and other spell conditions still affect casting.
 
+### Appearance
+
+**Requires [Sintezza Theme](https://github.com/ArtefactoO/Sintezza_Theme).** Open `/stheme` to choose the palette and fonts for this addon's windows.
+
 ### Requirements
 
-Install and enable [Sintezza Theme](https://github.com/ArtefactoO/Sintezza_Theme). Open `/stheme` to change the palette and fonts used by this addon's windows. Works with Blizzard nameplates. Install [EllesmereUI Nameplates](https://www.curseforge.com/wow/addons/ellesmereui) for its corresponding integration. [Sintezza UI](https://github.com/ArtefactoO/Sintezza_UI) is optional and can supply the appearance of its former execute indicator.
+Works with Blizzard nameplates. Install [EllesmereUI Nameplates](https://www.curseforge.com/wow/addons/ellesmereui) for its corresponding integration. [Sintezza UI](https://github.com/ArtefactoO/Sintezza_UI) is optional and can supply the appearance of its former execute indicator.
 
 <!-- Changelog field -->
 
