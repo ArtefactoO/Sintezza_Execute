@@ -22,7 +22,7 @@ For Shadow Word: Death, the threshold uses the lowest damage in your learned spe
 
 ### Requirements
 
-Install and enable [Sintezza Theme](https://github.com/ArtefactoO/Sintezza_Theme). Works with Blizzard nameplates. Install [EllesmereUI Nameplates](https://www.curseforge.com/wow/addons/ellesmereui) for its corresponding integration. [Sintezza UI](https://github.com/ArtefactoO/Sintezza_UI) is optional and can supply the appearance of its former execute indicator.
+Install and enable [Sintezza Theme](https://github.com/ArtefactoO/Sintezza_Theme). Open `/stheme` to change the palette and fonts used by this addon's windows. Works with Blizzard nameplates. Install [EllesmereUI Nameplates](https://www.curseforge.com/wow/addons/ellesmereui) for its corresponding integration. [Sintezza UI](https://github.com/ArtefactoO/Sintezza_UI) is optional and can supply the appearance of its former execute indicator.
 
 <!-- Changelog field -->
 
