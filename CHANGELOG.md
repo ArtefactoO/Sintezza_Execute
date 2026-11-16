@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.6
+
+- Updated the project logo and in-game addon icon.
+
+### По-русски
+
+- Обновлены логотип проекта и игровая иконка аддона.
+
 ## 1.4.5
 
 - Recognizes additional client formats for the Shadow Word: Death damage range and reports when the range cannot be read.
