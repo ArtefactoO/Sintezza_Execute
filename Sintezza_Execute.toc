@@ -3,9 +3,9 @@
 ## Notes: Execute thresholds and icons on enemy nameplates.
 ## Notes-ruRU: Пороги и значки добивания на вражеских неймплейтах.
 ## Author: Sintezza
-## Version: 1.5.0
+## Version: 1.6.0
 ## Dependencies: Sintezza_Theme
-## OptionalDeps: EllesmereUINameplates, Sintezza_UI, ShadowpriestExecute
+## OptionalDeps: EllesmereUINameplates, Sintezza_UI, ShadowpriestExecute, Sintezza_Perf
 ## SavedVariables: Sintezza_ExecuteDB
 ## IconTexture: Interface\AddOns\Sintezza_Execute\Textures\Icon
 ## X-License: MIT
@@ -16,3 +16,4 @@ Nameplates.lua
 Options.lua
 Minimap.lua
 Core.lua
+PerfBridge.lua

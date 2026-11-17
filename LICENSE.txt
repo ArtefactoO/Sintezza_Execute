@@ -22,6 +22,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Third-party: portions of Nameplates.lua and Options.lua (and the texture script
-tools/make_textures.py) are adapted from DoesItDie,
-MIT License, Copyright (c) 2026 Joe Greive
+Third-party code credits
+
+Shadowpriest: Execute 0.11.4 by goerkel and Does It Die by Joe Greive are
+distributed under the MIT License. The indicator includes adapted rendering
+helpers in Nameplates.lua and retains Textures/GlowSoft.tga from the
+Shadowpriest: Execute package.
+Sources:
+https://www.curseforge.com/wow/addons/shadowpriest-execute/files/9580243
+https://github.com/swirllyman/DoesItDie

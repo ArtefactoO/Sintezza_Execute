@@ -12,21 +12,41 @@
 
 ## Summary
 
-Show execute thresholds for Priest, Warrior, Paladin, and Warlock on enemy nameplates in WoW Forever.
+Enemy nameplate execute thresholds for Priest, Warrior, Paladin, and Warlock in WoW Forever.
 
 ## Description
 
-See when an enemy enters the health range of Shadow Word: Death, Execute, Hammer of Wrath, or Soul Fire with Decimation. The indicator can show a threshold line, a shaded health range, and a spell icon. Adjust those elements separately and try them on the training dummy preview in `/sexecute`.
+See the health threshold for your execute ability on enemy nameplates in WoW Forever. Sintezza Execute detects your highest learned rank and marks the point where the target enters execute range.
 
-For Shadow Word: Death, the threshold uses the lowest damage in your learned spell's tooltip and a configurable buffer. Warrior and Paladin thresholds are 20% health or lower. For a Warlock with Decimation and Soul Fire learned, the marker shows the phase below 35%. Range, resources, cooldowns, and other spell conditions still affect casting.
+### Read the execute threshold
+
+![Shadow Word: Death threshold marker in the training dummy preview above execute range](https://raw.githubusercontent.com/ArtefactoO/Sintezza_Execute/main/Docs/CurseForge/01-execute-threshold.png)
+
+The preview shows the 406 HP Shadow Word: Death threshold while the dummy is at 57% health.
+
+Shadow Word: Death uses the minimum damage shown in your tooltip and a configurable damage buffer. Warrior Execute and Paladin Hammer of Wrath use 20% health or less. Warlocks with Soul Fire and Decimation learned get a marker below 35% health. Normal casting requirements still apply.
+
+### Preview the icon and cooldown
+
+![Skull icon in the training dummy preview below the Shadow Word: Death threshold](https://raw.githubusercontent.com/ArtefactoO/Sintezza_Execute/main/Docs/CurseForge/02-execute-icon.png)
+
+At 21% health, the dummy is below the threshold and the selected skull icon appears.
+
+Enable the shaded execute zone, threshold marker, and icon independently. Pick the spell icon or a custom icon, then use the built-in preview to test different health, combat, and cooldown states. You can limit the indicator to combat or choose where it appears.
+
+### Window and minimap
+
+![Standalone Execute settings showing the Window and minimap tab](https://raw.githubusercontent.com/ArtefactoO/Sintezza_Execute/main/Docs/CurseForge/03-window-and-minimap.png)
+
+Open settings with `/sexecute`, the minimap button, or the WoW AddOns menu. The **Window and minimap** tab controls scale, opacity, and whether the minimap button is shown.
 
 ### Appearance
 
-**Requires [Sintezza Theme](https://github.com/ArtefactoO/Sintezza_Theme).** Open `/stheme` to choose the palette and fonts for this addon's windows.
+**Requires [Sintezza Theme](https://github.com/ArtefactoO/Sintezza_Theme).** Open `/stheme` to change the color scheme, button styles, background, and fonts across your Sintezza addons.
 
 ### Requirements
 
-Works with Blizzard nameplates. Install [EllesmereUI Nameplates](https://www.curseforge.com/wow/addons/ellesmereui) for its corresponding integration. [Sintezza UI](https://github.com/ArtefactoO/Sintezza_UI) is optional and can supply the appearance of its former execute indicator.
+Works with Blizzard nameplates and [EllesmereUI Nameplates](https://www.curseforge.com/wow/addons/ellesmereui). On first setup, Execute can reuse the threshold marker style from [Sintezza UI](https://github.com/ArtefactoO/Sintezza_UI).
 
 <!-- Changelog field -->
 

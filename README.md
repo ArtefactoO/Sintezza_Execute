@@ -1,10 +1,10 @@
 # Sintezza Execute
 
-![Sintezza Execute project logo](Docs/Logo.png)
+![Sintezza Execute project logo](Docs/CurseForge/Logo.png)
 
 Sintezza Execute automatically finds your highest learned rank of a supported execute ability in World of Warcraft Forever 1.60.1. Enable the fill, threshold marker, and icon on enemy nameplates independently. The icon uses the ability's texture by default, and **Icon appearance** offers six transparent alternatives.
 
-Install and enable **[Sintezza Theme](https://github.com/ArtefactoO/Sintezza_Theme)** alongside Execute. The indicator supports Blizzard and EllesmereUI nameplates. Enable a single execute indicator if you also have Shadowpriest: Execute installed. Execute can import the indicator appearance from the active **Sintezza UI** profile when that optional addon is enabled.
+Install and enable **[Sintezza Theme](https://github.com/ArtefactoO/Sintezza_Theme)** alongside Execute. The indicator supports Blizzard and EllesmereUI nameplates. Enable a single execute indicator if you also have Shadowpriest: Execute installed. On first setup, Execute can reuse the threshold marker style from the active **Sintezza UI** profile.
 
 ## How it works
 
@@ -16,32 +16,26 @@ Install and enable **[Sintezza Theme](https://github.com/ArtefactoO/Sintezza_The
 
 ## Open settings
 
-Use `/sexecute`, the minimap button, or the in-game AddOns settings category. The **Threshold and appearance** tab controls the buffer and the three indicator elements. **Advanced** covers size, color, the minimum health percentage, cooldown behavior, and pulse. **Window and minimap** contains shared window controls and the minimap button toggle.
+Use `/sexecute`, the minimap button, or the in-game AddOns settings category. **Nameplates** shows the detected ability and groups the threshold, display conditions, fill, marker, and icon settings in a single scrollable column. The live preview stays in view on the right. **Window and minimap** contains shared window controls and the minimap button toggle.
 
-The display language follows Sintezza Theme. The tooltip language follows the game client. The legacy commands `/spx`, `/spexecute`, and `/tods` are available when the upstream addon is disabled.
+The display language follows Sintezza Theme. The tooltip language follows the game client. The legacy commands `/spx`, `/spexecute`, and `/tods` are available when Shadowpriest: Execute is disabled.
 
 ## Gallery
 
-![The preview target is inside Shadow Word: Death range.](Docs/01-execute-range.png)
+![Training dummy preview at 57% health](Docs/CurseForge/01-execute-threshold.png)
 
-![The threshold marker remains visible above execute range.](Docs/02-above-threshold.png)
+The preview shows the 406 HP Shadow Word: Death threshold while the dummy is at 57% health.
 
-![Two health states in the training dummy preview.](Docs/03-crossing-the-threshold.gif)
+![Training dummy preview with the skull icon at 21% health](Docs/CurseForge/02-execute-icon.png)
+
+At 21% health, the dummy is below the threshold and the selected skull icon appears.
+
+![Execute window and minimap settings](Docs/CurseForge/03-window-and-minimap.png)
+
+The Window and minimap tab groups scale, opacity, layer, position, size, and the minimap button.
 
 ## License and credits
 
-Sintezza Execute is distributed under the MIT license. Rank selection and threshold calculation adapt code from Shadowpriest: Execute 0.11.4 by goerkel. Nameplate rendering and parts of the options adapt code from Does It Die by Joe Greive. Sintezza adds independent indicator controls, a preview, and shared theme integration. [MIT license](LICENSE.txt) · [Shadowpriest: Execute 0.11.4](https://www.curseforge.com/wow/addons/shadowpriest-execute/files/9580243) · [Does It Die](https://github.com/swirllyman/DoesItDie) · [Changelog](CHANGELOG.md)
-
-## На русском
-
-Sintezza Execute автоматически находит изученную способность добивания и показывает ее порог на полосках здоровья Blizzard и EllesmereUI в WoW Forever 1.60.1. Заливка, отметка порога и значок включаются отдельно. Для работы нужна **Sintezza Theme**. **Sintezza UI** можно подключить для импорта прежнего оформления из активного профиля.
-
-- **Жрец · «Слово Тьмы: Смерть».** Порог рассчитывается по минимальному урону высшего изученного ранга с учетом запаса. При уроне 600–750 и запасе 10% порог составляет 540 HP до учета щитов и снижения урона. Если прочитать диапазон урона не удалось, настройки покажут сообщение, а порог на неймплейте будет недоступен. К этой способности применяется фильтр **«Мин. порог для показа»**.
-- **Воин · «Казнь» и паладин · «Молот гнева».** Отметка показывает требование к здоровью цели, 20% и ниже. Для применения способности также учитываются ее обычные требования к ресурсам, дистанции и стойке.
-- **Чернокнижник · «Огонь души» с Decimation.** При изученных способности и таланте отметка показывает фазу ниже 35%. Для усиления заклинания должен сработать эффект таланта.
-
-`/sexecute`, кнопка у миникарты и категория модификаций открывают настройки. В списке **«Вид значка»** есть родная иконка способности («Авто») и шесть прозрачных вариантов. В предпросмотре можно менять здоровье цели, состояние перезарядки и боевой сценарий. В расширенных настройках доступны цвет, размер, пульсация и поведение значка на перезарядке. Язык интерфейса выбирается в `/stheme`.
-
-Использованы адаптации кода Shadowpriest: Execute и Does It Die. [Лицензия MIT](LICENSE.txt) · [История изменений](CHANGELOG.md)
+Inspired by [Shadowpriest: Execute](https://www.curseforge.com/wow/addons/shadowpriest-execute) and [Does It Die](https://github.com/swirllyman/DoesItDie). [MIT License and code credits](LICENSE.txt) · [Changelog](CHANGELOG.md)
 
 [CurseForge listing fields](CURSEFORGE.md)

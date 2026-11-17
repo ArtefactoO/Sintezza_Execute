@@ -52,6 +52,16 @@ end
 
 function ns.RefreshPreview()
     if not ui or not ui.panel:IsVisible() then return end
+    if ui.detected then
+        local label = ns.spellName or (ns.spellID and L.LOADING_ABILITY or L.NO_EXECUTE)
+        ui.detected:SetText(ns.spellTexture and TextureLabel(ns.spellTexture, label) or label)
+    end
+    if ui.refreshControls and (ui.class ~= ns.class or ui.spellTexture ~= ns.spellTexture) then
+        local reflow = ui.class ~= ns.class
+        ui.class, ui.spellTexture = ns.class, ns.spellTexture
+        ui.refreshControls(reflow)
+    end
+    if not ui.preview:IsVisible() then return end
     local db = ns.db
     local rule = ns.rule
     local percent = rule and rule.percent
@@ -86,16 +96,6 @@ function ns.RefreshPreview()
     ui.damage:SetText(minimum and (ns.minimum and L.MINIMUM or L.SAMPLE):format(minimum)
         or (rule and rule.exclusive and L.PHASE_HELP) or "")
     ui.testCooldown:SetEnabled(canTestCooldown)
-    ui.header.subtitle:SetText(ns.spellName or L.SUBTITLE)
-    if ui.detected then
-        local label = ns.spellName or (ns.spellID and L.LOADING_ABILITY or L.NO_EXECUTE)
-        ui.detected:SetText(ns.spellTexture and TextureLabel(ns.spellTexture, label) or label)
-    end
-    if ui.refreshControls and (ui.class ~= ns.class or ui.spellTexture ~= ns.spellTexture) then
-        local reflow = ui.class ~= ns.class
-        ui.class, ui.spellTexture = ns.class, ns.spellTexture
-        ui.refreshControls(reflow)
-    end
     if ns.class == "PRIEST" and ns.originalLoaded then ui.notice:SetText(L.ORIGINAL)
     elseif minimum and not ns.minimum then ui.notice:SetText(ns.unreadableDamage and L.UNREADABLE_DAMAGE or L.WAIT_TOOLTIP)
     else ui.notice:SetText("") end
@@ -111,26 +111,26 @@ local function StackSlider(row)
     row.slider:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -48, 0)
 end
 
-local function BuildPreview(frame, header, W, T)
-    local card = W:Section(frame, L.PREVIEW, nil, "settings")
-    card:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 14, -14)
-    card:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 14)
-    card:SetWidth(300)
+local function BuildPreview(frame, parent, W, T)
+    local card = W:Section(parent, L.PREVIEW, nil, "settings")
+    card:SetPoint("TOPRIGHT", parent)
+    card:SetPoint("BOTTOMRIGHT", parent)
+    card:SetWidth(320)
     local scenarioRow = W:ChoiceRow(card, L.SCENARIO, { combat = L.IN_COMBAT,
         outsideCombat = L.OUT_OF_COMBAT, instance = L.DUNGEON_COMBAT }, function() return scenario end,
         function(value) scenario = value; ns.RefreshPreview() end, { combat = 1, outsideCombat = 2, instance = 3 })
-    scenarioRow.label:SetPoint("RIGHT", scenarioRow, "RIGHT", -174, 0)
-    scenarioRow:SetPoint("TOPLEFT", 14, -35)
-    scenarioRow:SetPoint("TOPRIGHT", -14, -35)
+    scenarioRow:SetPoint("TOPLEFT", 0, -card.headerHeight)
+    scenarioRow:SetPoint("TOPRIGHT", 0, -card.headerHeight)
     local stage = CreateFrame("Frame", nil, card, "BackdropTemplate")
     stage:SetPoint("TOPLEFT", scenarioRow, "BOTTOMLEFT", 0, -6)
     stage:SetPoint("TOPRIGHT", scenarioRow, "BOTTOMRIGHT", 0, -6)
-    stage:SetHeight(112)
+    stage:SetHeight(132)
     T:Backdrop(stage, T.input, T.lineSoft)
     T:Surface(stage, .48, .34, T.frameAccent, "window-brush.tga")
+    local stageInset, iconSpace = 12, 114
     local bar = CreateFrame("StatusBar", nil, stage)
-    bar:SetPoint("LEFT", stage, "LEFT", 12, -3)
-    bar:SetPoint("RIGHT", stage, "RIGHT", -70, -3)
+    bar:SetPoint("LEFT", stage, "LEFT", stageInset, -3)
+    bar:SetPoint("RIGHT", stage, "RIGHT", -iconSpace, -3)
     bar:SetHeight(22)
     bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     bar:SetStatusBarColor(.62, .21, .22)
@@ -148,13 +148,13 @@ local function BuildPreview(frame, header, W, T)
     hp:SetPoint("CENTER")
     hp:SetShadowOffset(1, -1)
     local cooldownStatus = W:Label(stage, "", 10, T.text)
-    cooldownStatus:SetPoint("BOTTOMLEFT", stage, "BOTTOMLEFT", 12, 17)
-    cooldownStatus:SetPoint("BOTTOMRIGHT", stage, "BOTTOMRIGHT", -70, 17)
+    cooldownStatus:SetPoint("BOTTOMLEFT", stage, "BOTTOMLEFT", stageInset, 17)
+    cooldownStatus:SetPoint("BOTTOMRIGHT", stage, "BOTTOMRIGHT", -iconSpace, 17)
     cooldownStatus:SetJustifyH("LEFT")
     cooldownStatus:Hide()
     local cooldownProgress = CreateFrame("StatusBar", nil, stage)
-    cooldownProgress:SetPoint("BOTTOMLEFT", stage, "BOTTOMLEFT", 12, 10)
-    cooldownProgress:SetPoint("BOTTOMRIGHT", stage, "BOTTOMRIGHT", -70, 10)
+    cooldownProgress:SetPoint("BOTTOMLEFT", stage, "BOTTOMLEFT", stageInset, 10)
+    cooldownProgress:SetPoint("BOTTOMRIGHT", stage, "BOTTOMRIGHT", -iconSpace, 10)
     cooldownProgress:SetHeight(4)
     cooldownProgress:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     cooldownProgress:SetMinMaxValues(0, ns.PREVIEW_COOLDOWN)
@@ -166,6 +166,7 @@ local function BuildPreview(frame, header, W, T)
     local healthRow = W:SliderRow(card, L.HEALTH, 1, 100, 1, function() return healthPercent end,
         function(value) healthPercent = value; ns.RefreshPreview() end, "%")
     StackSlider(healthRow)
+    healthRow:HookScript("OnHide", function() healthRow.edit:ClearFocus() end)
     healthRow:SetPoint("TOPLEFT", stage, "BOTTOMLEFT", 0, -12)
     healthRow:SetPoint("TOPRIGHT", stage, "BOTTOMRIGHT", 0, -12)
     local testCooldown = W:Button(card, L.TEST_COOLDOWN, function(button)
@@ -199,61 +200,42 @@ local function BuildPreview(frame, header, W, T)
     notice:SetPoint("TOPLEFT", damage, "BOTTOMLEFT", 0, -8)
     notice:SetPoint("TOPRIGHT", damage, "BOTTOMRIGHT", 0, -8)
     notice:SetWordWrap(true)
-    ui = { panel = frame, header = header, bar = bar, overlay = overlay, hp = hp,
+    ui = { panel = frame, preview = card, bar = bar, overlay = overlay, hp = hp,
         result = result, damage = damage, notice = notice, testCooldown = testCooldown,
         cooldownStatus = cooldownStatus, cooldownProgress = cooldownProgress }
-    return card
 end
 
-local function BuildControls(frame, header, preview, W, T)
+local function BuildNameplateSettings(parent, W, T)
     local db = ns.db
-    local pages, refreshers = {}, {}
-    local selected = "general"
-    local values = { "general", "window" }
-    local tabs = W:Segmented(frame, { L.GENERAL, L.WINDOW_MINIMAP }, values, function() return selected end,
-        function(value)
-            selected = value
-            for key, scroll in pairs(pages) do scroll:SetShown(key == value) end
-        end)
-    tabs:SetPoint("TOPLEFT", preview, "TOPRIGHT", 12, 0)
-    tabs:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -14, -14)
-    local card = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    card:SetPoint("TOPLEFT", tabs, "BOTTOMLEFT", 0, -10)
-    card:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 14)
+    local rows, refreshers = {}, {}
+    local scroll, body, scrollbar = W:ScrollFrame(parent)
+    scroll:SetPoint("TOPLEFT")
+    scroll:SetPoint("BOTTOMRIGHT", ui.preview, "BOTTOMLEFT", -30, 0)
+    scrollbar:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 5, 0)
+    scrollbar:SetPoint("BOTTOMLEFT", scroll, "BOTTOMRIGHT", 5, 0)
+    scroll:HookScript("OnSizeChanged", function(self, width)
+        body:SetWidth(math.max(1, width))
+        self:RefreshRange()
+    end)
+    body:SetWidth(math.max(1, scroll:GetWidth()))
 
-    local body, rows, addingAdvanced, advancedOpen
-    local function Layout(content, list)
+    local function Layout()
         local y = 0
-        for _, entry in ipairs(list) do
+        for _, entry in ipairs(rows) do
             local row = entry.row
-            local shown = (not entry.advanced or advancedOpen == true) and (not entry.visible or entry.visible())
+            local shown = not entry.visible or entry.visible()
             if shown then
-                row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
-                row:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -y)
-                y = y + row:GetHeight() + 2
+                row:SetPoint("TOPLEFT", body, "TOPLEFT", 0, -y)
+                row:SetPoint("TOPRIGHT", body, "TOPRIGHT", 0, -y)
+                y = y + row:GetHeight() + 4
             end
             row:SetShown(shown)
         end
-        content:SetHeight(y)
-    end
-    local function StartPage(key)
-        local scroll, content, scrollbar = W:ScrollFrame(card)
-        scroll:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -9)
-        scroll:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -17, 9)
-        scrollbar:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 3, 0)
-        scrollbar:SetPoint("BOTTOMLEFT", scroll, "BOTTOMRIGHT", 3, 0)
-        scroll:HookScript("OnSizeChanged", function(self)
-            content:SetWidth(math.max(1, self:GetWidth()))
-            self:RefreshRange()
-        end)
-        content:SetWidth(math.max(1, scroll:GetWidth()))
-        pages[key], body, rows = scroll, content, {}
-        scroll:SetShown(key == selected)
+        body:SetHeight(math.max(1, y))
+        scroll:RefreshRange()
     end
     local function Add(row, available, visible)
-        if #rows % 2 == 0 then T:RowBand(row) end
-        rows[#rows + 1] = { row = row, advanced = addingAdvanced, visible = visible }
+        rows[#rows + 1] = { row = row, visible = visible }
         if available then W:BindAvailability(row, available) end
         if row.Refresh then refreshers[#refreshers + 1] = row end
         return row
@@ -278,6 +260,7 @@ local function BuildControls(frame, header, preview, W, T)
     end
     local function Slider(label, minimum, maximum, get, set, suffix, available, help, visible)
         local row = W:SliderRow(body, label, minimum, maximum, 1, get, set, suffix)
+        row:HookScript("OnHide", function() row.edit:ClearFocus() end)
         if W.Help and help then W:Help(row, help) end
         Add(row, available, visible)
     end
@@ -301,20 +284,11 @@ local function BuildControls(frame, header, preview, W, T)
     local function GlowOn() return NativeIconOn() and db.showGlow end
     local function DamageThreshold() return ns.class == "PRIEST" end
     local function Heading(label)
-        local row = W:SettingRow(body, label, 28)
-        row.label:SetTextColor(unpack(T.brass))
-        row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-        return Add(row)
-    end
-    local function Note(text)
-        local row = W:SettingRow(body, text, 34)
-        row.label:SetWordWrap(true)
-        row.label:SetTextColor(unpack(T.muted))
-        row.label:SetPoint("RIGHT", row, "RIGHT", -6, 0)
-        return Add(row)
+        local section = W:Section(body, label, nil, "settings")
+        section:SetHeight(section.headerHeight)
+        Add(section)
     end
 
-    StartPage("general")
     Heading(L.ABILITY)
     local abilityRow = Add(W:SettingRow(body, L.DETECTED_ABILITY))
     abilityRow.label:SetPoint("RIGHT", abilityRow, "CENTER", -4, 0)
@@ -324,41 +298,17 @@ local function BuildControls(frame, header, preview, W, T)
     ui.detected:SetJustifyH("RIGHT")
     ui.detected:SetWordWrap(false)
     Slider(L.MARGIN, 0, 50, Get("margin"), Set("margin"), "%", nil, L.MARGIN_HELP, DamageThreshold)
+    Slider(L.MIN_EXECUTE_PERCENT, 0, 100, Get("minExecutePercent"), Set("minExecutePercent"), "%", nil, L.MIN_HP_HINT, DamageThreshold)
     Heading(L.WHEN)
     Toggle(L.ENABLED, "enabled")
     Toggle(L.COMBAT_ONLY, "combatOnly")
     Add(W:ChoiceRow(body, L.LOCATION, { ANY = L.ANYWHERE, INSIDE = L.INSIDE, OUTSIDE = L.OUTSIDE },
         Get("location"), Set("location"), { ANY = 1, INSIDE = 2, OUTSIDE = 3 }))
-    Heading(L.APPEARANCE)
+
+    Heading(L.FILL_MARKER)
     Toggle(L.ZONE, "showZone")
-    Toggle(L.MARKER, "showMarker", nil, L.MARKER_HELP)
-    Toggle(L.ICON, "showIcon")
-    local names, order = {}, {}
-    for index, choice in ipairs(ns.iconChoices) do
-        names[choice], order[choice] = L.ICON_CHOICES[choice], index
-    end
-    local function IconOptions()
-        local choices = {}
-        for _, choice in ipairs(ns.iconChoices) do
-            choices[choice] = TextureLabel(ns.IconTexture(choice), names[choice])
-        end
-        return choices
-    end
-    local iconChoice = Add(W:ChoiceRow(body, L.ICON_SOURCE, IconOptions, Get("iconSource"), Set("iconSource"), order), IconOn)
-    iconChoice.button:SetWidth(198)
-    iconChoice.button.stepFromKeyboard = nil
-    local generalBody, generalRows = body, rows
-    local advanced = Add(W:Button(body, L.SHOW_ADVANCED, function(button)
-        advancedOpen = not advancedOpen
-        button.text:SetText(advancedOpen and L.HIDE_ADVANCED or L.SHOW_ADVANCED)
-        Layout(generalBody, generalRows)
-        pages.general:RefreshRange()
-    end))
-    advanced:SetHeight(30)
-    addingAdvanced = true
-    Slider(L.MIN_EXECUTE_PERCENT, 0, 100, Get("minExecutePercent"), Set("minExecutePercent"), "%", nil, L.MIN_HP_HINT, DamageThreshold)
-    Heading(L.NAMEPLATE)
     Color(L.COLOR, ns.GetZoneColor, Set("zoneColor"), Get("showZone"))
+    Toggle(L.MARKER, "showMarker", nil, L.MARKER_HELP)
     Color(L.MARKER_COLOR, function() return db.markerStyle.color or T.muted end, Style("color"), MarkerOn)
     Add(W:ChoiceRow(body, L.MARKER_ANCHOR, { AUTO = L.AUTO, FULL = L.FULL, BOTTOM = L.BOTTOM,
         CENTER = L.CENTER, TOP = L.TOP }, function() return db.markerStyle.anchor end, Style("anchor"),
@@ -369,12 +319,21 @@ local function BuildControls(frame, header, preview, W, T)
             local anchor = db.markerStyle.anchor
             return db.showMarker and anchor ~= "FULL" and not (anchor == "AUTO" and db.showZone)
         end)
-    Add(W:ActionRow(body, L.THEME_COLORS, L.RESET_COLOR, function()
-        db.zoneColor = nil
-        Style("color")(nil)
-    end))
 
-    Heading(L.ICON_TAB)
+    Heading(L.ICON_SECTION)
+    Toggle(L.ICON, "showIcon")
+    local order = {}
+    for index, choice in ipairs(ns.iconChoices) do order[choice] = index end
+    local function IconOptions()
+        local choices = {}
+        for _, choice in ipairs(ns.iconChoices) do
+            choices[choice] = TextureLabel(ns.IconTexture(choice), L.ICON_CHOICES[choice])
+        end
+        return choices
+    end
+    local iconChoice = Add(W:ChoiceRow(body, L.ICON_SOURCE, IconOptions, Get("iconSource"), Set("iconSource"), order), IconOn)
+    iconChoice.button:SetWidth(198)
+    iconChoice.button.stepFromKeyboard = nil
     Toggle(L.ICON_BORDER, "showIconBorder", NativeIconOn)
     Add(W:ChoiceRow(body, L.ICON_COOLDOWN, { SHOW = L.COOLDOWN_SHOW, HIDE = L.COOLDOWN_HIDE,
         DIM = L.COOLDOWN_DIM, TIMER = L.COOLDOWN_TIMER }, Get("iconCooldown"), Set("iconCooldown"),
@@ -382,6 +341,7 @@ local function BuildControls(frame, header, preview, W, T)
     Slider(L.ICON_SIZE, 14, 54, Get("iconSize"), Set("iconSize"), nil, IconOn)
     Slider(L.ICON_X, -40, 40, Get("iconOffsetX"), Set("iconOffsetX"), nil, IconOn)
     Slider(L.ICON_Y, -35, 35, Get("iconOffsetY"), Set("iconOffsetY"), nil, IconOn)
+    Heading(L.ICON_EFFECTS)
     Toggle(L.GLOW, "showGlow", NativeIconOn)
     local glowColor = W:ColorSwatch(body, L.GLOW_COLOR, function()
         local color = db.glowColor or T.accent
@@ -397,31 +357,17 @@ local function BuildControls(frame, header, preview, W, T)
     Add(glowColor, GlowOn)
     Sintezza_Theme:TrackAppearance(glowColor, "executeGlowColor", function(owner) owner:Refresh() end)
     Slider(L.GLOW_OPACITY, 0, 100, Get("glowOpacity"), Set("glowOpacity"), "%", GlowOn)
-    Add(W:ChoiceRow(body, L.ICON_PULSE, { OFF = L.PULSE_OFF, ICON = L.PULSE_ICON,
+    local pulse = Add(W:ChoiceRow(body, L.ICON_PULSE, { OFF = L.PULSE_OFF, ICON = L.PULSE_ICON,
         GLOW = L.PULSE_GLOW, BOTH = L.PULSE_BOTH }, Get("iconPulse"), Set("iconPulse"),
         { OFF = 1, ICON = 2, GLOW = 3, BOTH = 4 }), IconOn)
-    Note(L.PULSE_HINT)
-    Add(W:ActionRow(body, L.THEME_COLORS, L.RESET_COLOR, function() Set("glowColor")(nil) end))
-    addingAdvanced = false
-    Layout(body, rows)
+    if W.Help then W:Help(pulse, L.PULSE_HINT) end
+    Layout()
 
-    StartPage("window")
-    Add(Sintezza_Theme:CreateWindowOptions(body, T, {
-        windows = { { prefs = windowAppearance } },
-        getMinimap = function() return not db.minimap.hide end,
-        setMinimap = ns.SetMinimapShown,
-    }))
-    Layout(body, rows)
-
-    tabs:Refresh()
     ui.refreshControls = function(reflow)
-        if reflow then
-            Layout(generalBody, generalRows)
-            pages.general:RefreshRange()
-        end
+        if reflow then Layout() end
         RefreshRows()
     end
-    frame:HookScript("OnShow", function()
+    parent:HookScript("OnShow", function()
         RefreshRows()
         ns.RefreshPreview()
     end)
@@ -432,15 +378,14 @@ local function Build()
     local W = Sintezza_Theme:CreateWidgets(T)
     local frame = CreateFrame("Frame", "Sintezza_ExecuteOptions", UIParent, "BackdropTemplate")
     frame:Hide()
-    frame:SetSize(800, 508)
+    frame:SetSize(800, 544)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
     T:WindowSurface(frame)
-    local header = W:WindowHeader(frame, { title = L.TITLE, subtitle = L.SUBTITLE,
-        addonName = addonName, icon = ns.Media .. "Icon" })
+    local header = W:WindowHeader(frame, { title = L.TITLE, addonName = addonName, icon = ns.Media .. "Icon" })
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function()
@@ -449,10 +394,40 @@ local function Build()
     header:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
     frame:HookScript("OnHide", function() frame:StopMovingOrSizing() end)
     if UISpecialFrames then table.insert(UISpecialFrames, frame:GetName()) end
-    local preview = BuildPreview(frame, header, W, T)
+    local selected = "nameplate"
+    local pages = {}
+    local keys = { "nameplate", "window" }
+    local labels = { L.NAMEPLATE, L.WINDOW_MINIMAP }
+    local tabs = W:Segmented(frame, labels, keys, function() return selected end, function(key)
+        if selected == key then return end
+        pages[selected]:Hide()
+        selected = key
+        pages[key]:Show()
+    end, true)
+    tabs:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 12, -4)
+    tabs:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -12, -4)
+    local content = CreateFrame("Frame", nil, frame)
+    content:SetPoint("TOPLEFT", tabs, "BOTTOMLEFT", 10, -12)
+    content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -22, 16)
+    local nameplate = CreateFrame("Frame", nil, content)
+    nameplate:SetAllPoints()
+    BuildPreview(frame, nameplate, W, T)
+    BuildNameplateSettings(nameplate, W, T)
+    pages.nameplate = nameplate
+
+    local window = Sintezza_Theme:CreateWindowOptions(content, T, {
+        windows = { { prefs = windowAppearance } },
+        getMinimap = function() return not ns.db.minimap.hide end,
+        setMinimap = ns.SetMinimapShown,
+    })
+    -- The shared panel applies its own row insets.
+    window:SetPoint("TOPLEFT", -W.CONTROL_INSET, 0)
+    window:SetPoint("TOPRIGHT", W.CONTROL_INSET, 0)
+    window:Hide()
+    pages.window = window
+    tabs:Refresh()
     Sintezza_Theme:TrackAppearance(frame, "executePreview", ns.RefreshPreview)
-    BuildControls(frame, header, preview, W, T)
-    windowAppearance:Bind(frame, { resize = { minWidth = 760, minHeight = 450, maxWidth = 1300, maxHeight = 920 } })
+    windowAppearance:Bind(frame, { resize = { minWidth = 760, minHeight = 500, maxWidth = 1300, maxHeight = 920 } })
 end
 
 function ns.GetSettingsWindow()

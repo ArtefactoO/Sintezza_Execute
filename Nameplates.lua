@@ -313,8 +313,13 @@ function ns.DrawOverlay(w, bar, anchor, maxHealth, health, threshold, texture, r
     if (db.showZone or db.showMarker) and not iconOnly then
         w.zone:SetShown(db.showZone)
         w.edge:SetShown(db.showMarker)
-        w.marker:SetMinMaxValues(0, maxHealth)
-        w.marker:SetValue(threshold)
+        local secretMaximum = ns.IsSecret(maxHealth)
+        if secretMaximum or w.markerMaximum ~= maxHealth or w.markerThreshold ~= threshold then
+            w.marker:SetMinMaxValues(0, maxHealth)
+            w.marker:SetValue(threshold)
+            w.markerMaximum = not secretMaximum and maxHealth or nil
+            w.markerThreshold = threshold
+        end
         w.marker:Show()
     else
         w.marker:Hide()
@@ -424,6 +429,7 @@ local function PlateCooldown(spellID, fromCooldownEvent, showTimer)
 end
 
 function ns.RefreshPlates(fromCooldownEvent)
+    if ns.PerfBridge then ns.PerfBridge.Count("refresh") end
     local db = ns.db
     local enabled = db and db.enabled and not (ns.class == "PRIEST" and ns.originalLoaded) and ns.spellID
         and (db.showZone or db.showMarker or db.showIcon)
