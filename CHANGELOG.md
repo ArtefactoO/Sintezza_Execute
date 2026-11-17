@@ -1,10 +1,26 @@
 # Changelog
 
-## 1.4.6
+## 1.5.0
+
+- The settings window displays the version, and its WoW AddOns page uses the shared launcher.
+- Settings use the standard compact header.
+- The preview controls use a shared section heading on the window background.
+
+- Left-clicking the minimap icon opens or closes the window.
+
+- Connected window scale, opacity, and layer to the shared Theme settings.
 
 - Updated the project logo and in-game addon icon.
 
 ### По-русски
+
+- Версия отображается в шапке окна настроек, а в меню модификаций используется общая кнопка запуска.
+- Настройки используют общую компактную шапку.
+- Настройки предпросмотра размещены на фоне окна под общим заголовком.
+
+- ЛКМ по значку у миникарты открывает или закрывает окно.
+
+- Масштаб, непрозрачность и слой окон подключены к общим настройкам Theme.
 
 - Обновлены логотип проекта и игровая иконка аддона.
 

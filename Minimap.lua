@@ -11,12 +11,10 @@ end
 function ns.InitializeMinimap()
     if launcher then return end
     launcher = Sintezza_Theme:CreateMinimapButton(addon, ns.Media .. "Icon", ns.db.minimap,
-        function(_, button)
-            if button == "LeftButton" then ns.OpenSettings() end
-        end,
+        { window = ns.GetSettingsWindow, open = ns.OpenSettings },
         function(tooltip)
             local accent = ns.Theme.accent
             tooltip:AddLine(L.TITLE, accent[1], accent[2], accent[3])
-            tooltip:AddLine(L.MINIMAP_OPEN, 1, 1, 1)
+            Sintezza_Theme:AddMinimapToggleHint(tooltip)
         end)
 end

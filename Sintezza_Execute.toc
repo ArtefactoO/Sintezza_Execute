@@ -3,7 +3,7 @@
 ## Notes: Execute thresholds and icons on enemy nameplates.
 ## Notes-ruRU: Пороги и значки добивания на вражеских неймплейтах.
 ## Author: Sintezza
-## Version: 1.4.6
+## Version: 1.5.0
 ## Dependencies: Sintezza_Theme
 ## OptionalDeps: EllesmereUINameplates, Sintezza_UI, ShadowpriestExecute
 ## SavedVariables: Sintezza_ExecuteDB

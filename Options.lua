@@ -1,6 +1,9 @@
-local _, ns = ...
+local addonName, ns = ...
 local L = ns.L
 local windowAppearance = Sintezza_Theme:NewWindowPreferences(function() return ns.db end)
+if Sintezza_Theme.RegisterGlobalWindowPreferences then
+    Sintezza_Theme:RegisterGlobalWindowPreferences("Sintezza Execute", windowAppearance)
+end
 local MAX_HEALTH, SAMPLE_DAMAGE = 1800, 600
 ns.PREVIEW_COOLDOWN = 6
 local healthPercent, cooldownStart, scenario = 20, nil, "combat"
@@ -109,7 +112,7 @@ local function StackSlider(row)
 end
 
 local function BuildPreview(frame, header, W, T)
-    local card = W:Card(frame, L.PREVIEW, "")
+    local card = W:Section(frame, L.PREVIEW, nil, "settings")
     card:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 14, -14)
     card:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 14)
     card:SetWidth(300)
@@ -202,7 +205,7 @@ local function BuildPreview(frame, header, W, T)
     return card
 end
 
-local function BuildControls(frame, preview, W, T)
+local function BuildControls(frame, header, preview, W, T)
     local db = ns.db
     local pages, refreshers = {}, {}
     local selected = "general"
@@ -213,7 +216,7 @@ local function BuildControls(frame, preview, W, T)
             for key, scroll in pairs(pages) do scroll:SetShown(key == value) end
         end)
     tabs:SetPoint("TOPLEFT", preview, "TOPRIGHT", 12, 0)
-    tabs:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -73)
+    tabs:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -14, -14)
     local card = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     card:SetPoint("TOPLEFT", tabs, "BOTTOMLEFT", 0, -10)
     card:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 14)
@@ -437,7 +440,7 @@ local function Build()
     frame:EnableMouse(true)
     T:WindowSurface(frame)
     local header = W:WindowHeader(frame, { title = L.TITLE, subtitle = L.SUBTITLE,
-        icon = ns.Media .. "Icon", height = 59 })
+        addonName = addonName, icon = ns.Media .. "Icon" })
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
     header:SetScript("OnDragStart", function()
@@ -448,8 +451,12 @@ local function Build()
     if UISpecialFrames then table.insert(UISpecialFrames, frame:GetName()) end
     local preview = BuildPreview(frame, header, W, T)
     Sintezza_Theme:TrackAppearance(frame, "executePreview", ns.RefreshPreview)
-    BuildControls(frame, preview, W, T)
+    BuildControls(frame, header, preview, W, T)
     windowAppearance:Bind(frame, { resize = { minWidth = 760, minHeight = 450, maxWidth = 1300, maxHeight = 920 } })
+end
+
+function ns.GetSettingsWindow()
+    return ui and ui.panel
 end
 
 function ns.OpenSettings()
@@ -462,25 +469,11 @@ function ns.OpenSettings()
 end
 
 function ns.RegisterOptions()
-    if not category and Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
-        local panel = CreateFrame("Frame")
-        panel.name = L.TITLE
-        local T = ns.Theme
-        local W = Sintezza_Theme:CreateWidgets(T)
-        local icon = panel:CreateTexture(nil, "ARTWORK")
-        icon:SetPoint("TOPLEFT", 18, -18)
-        icon:SetSize(24, 24)
-        icon:SetTexture(ns.Media .. "Icon")
-        local title = W:Label(panel, L.TITLE, 16, T.text, "display")
-        title:SetPoint("LEFT", icon, "RIGHT", 8, 0)
-        local open = W:Button(panel, L.OPEN, function()
-            if SettingsPanel and SettingsPanel:IsShown() and not InCombatLockdown() then HideUIPanel(SettingsPanel) end
-            ns.OpenSettings()
-        end)
-        open:SetSize(184, 28)
-        open:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", 0, -16)
-        category = Settings.RegisterCanvasLayoutCategory(panel, L.TITLE)
-        Settings.RegisterAddOnCategory(category)
+    if not category then
+        category = Sintezza_Theme:RegisterLauncherPage({
+            title = L.TITLE, icon = ns.Media .. "Icon", buttonLabel = L.OPEN,
+            open = ns.OpenSettings, appearance = ns.Theme,
+        })
     end
     SLASH_SINTEZZA_EXECUTE1 = "/sexecute"
     SLASH_SINTEZZA_EXECUTE2 = "/sintezza_execute"
