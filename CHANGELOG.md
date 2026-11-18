@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+
+- Apply the minimum threshold to Shadow Word: Death nameplates even when maximum health is secret. Hide the threshold marker and fill if the client rejects clipping.
+
 ## 1.6.0
 
 - Group threshold, fill, marker, and icon settings in one Nameplates tab with a fixed live preview. Align the shared window settings and remove the theme color reset rows.

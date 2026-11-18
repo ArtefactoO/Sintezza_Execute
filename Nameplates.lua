@@ -4,11 +4,12 @@ local _, ns = ...
 local shared = Sintezza_Theme
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local ICON_TRAVEL = 10000
+-- Leave room for the largest icon and its offsets beyond the health bar.
+local THRESHOLD_CLIP_PADDING = 128
 local ZONE_ALPHA = .35
 local units, overlays = {}, setmetatable({}, { __mode = "k" })
 local cooldownSpell, lastReady, lastDuration
 local healthCurve, healthCurveThreshold
-local maxHealthCurve, maxHealthCurveLimit
 local percentCurve, percentCurveRule
 local driver = CreateFrame("Frame")
 driver:Hide()
@@ -93,12 +94,15 @@ function ns.CreateOverlay(host)
     local root = CreateFrame("Frame", nil, host)
     root:SetAllPoints(host)
     root:EnableMouse(false)
-    local marker = InvisibleBar(root)
+    local display = CreateFrame("Frame", nil, root)
+    display:SetAllPoints(root)
+    display:EnableMouse(false)
+    local marker = InvisibleBar(display)
     local span = marker:GetStatusBarTexture()
     local zone = marker:CreateTexture(nil, "ARTWORK")
     zone:SetAllPoints(span)
     local edge = marker:CreateTexture(nil, "OVERLAY")
-    local window = CreateFrame("Frame", nil, root)
+    local window = CreateFrame("Frame", nil, display)
     window:EnableMouse(false)
     window:SetClipsChildren(true)
     local supportsGate = window.SetIgnoringChildrenForBounds
@@ -127,8 +131,8 @@ function ns.CreateOverlay(host)
     local border = ns.Theme:FrameIcon(iconFrame, icon)
     marker:Hide()
     window:Hide()
-    local overlay = { root = root, marker = marker, span = span, zone = zone, edge = edge, window = window, gate = gate, clip = clip,
-        holder = holder, iconFrame = iconFrame, icon = icon, border = border, glow = glow }
+    local overlay = { root = root, display = display, marker = marker, span = span, zone = zone, edge = edge, window = window,
+        gate = gate, clip = clip, holder = holder, iconFrame = iconFrame, icon = icon, border = border, glow = glow }
     window:SetScript("OnHide", function()
         SetPulsePlaying(overlay.scalePulse, false)
         SetPulsePlaying(overlay.glowPulse, false)
@@ -351,15 +355,50 @@ function ns.DrawOverlay(w, bar, anchor, maxHealth, health, threshold, texture, r
     UpdatePulse(w)
 end
 
-local function ApplyMaxHealthAlpha(root, maxHealth, limit)
-    if not maxHealthCurve or maxHealthCurveLimit ~= limit then
-        local curve = C_CurveUtil.CreateCurve()
-        curve:SetType(Enum.LuaCurveType.Step)
-        curve:AddPoint(0, 1)
-        curve:AddPoint(limit + .5, 0)
-        maxHealthCurve, maxHealthCurveLimit = curve, limit
+local function ApplyMaxHealthClip(w, bar, maxHealth, limit)
+    local gate = w.maxHealthGate
+    if not gate then
+        gate = InvisibleBar(w.root)
+        gate:SetHeight(1)
+        w.maxHealthGate = gate
     end
-    root:SetAlpha(maxHealthCurve:Evaluate(maxHealth))
+    if w.maxHealthBar ~= bar then
+        local padding = THRESHOLD_CLIP_PADDING
+        gate:ClearAllPoints()
+        gate:SetPoint("LEFT", bar, "LEFT", -padding, 0)
+        gate:SetPoint("RIGHT", bar, "RIGHT", padding, 0)
+        local display = w.display
+        display:SetIgnoringChildrenForBounds(true)
+        -- A failed anchor update still needs to be restored before drawing without the filter.
+        w.maxHealthBar = false
+        display:ClearAllPoints()
+        display:SetPoint("LEFT", gate:GetStatusBarTexture(), "RIGHT")
+        display:SetPoint("TOPRIGHT", bar, "TOPRIGHT", padding * 2, padding)
+        display:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", padding * 2, -padding)
+        w.maxHealthBar = bar
+    end
+    if w.maxHealthLimit ~= limit then
+        -- Whole HP at or below the limit empties the bar. One HP over fills it and clips the overlay.
+        gate:SetMinMaxValues(limit, limit + 1)
+        w.maxHealthLimit = limit
+    end
+    gate:SetValue(maxHealth)
+    if not w.maxHealthClipping then
+        w.display:SetClipsChildren(true)
+        w.maxHealthClipping = true
+    end
+end
+
+local function ClearMaxHealthClip(w)
+    if w.maxHealthClipping then
+        w.display:SetClipsChildren(false)
+        w.maxHealthClipping = nil
+    end
+    if w.maxHealthBar ~= nil then
+        w.display:ClearAllPoints()
+        w.display:SetAllPoints(w.root)
+        w.maxHealthBar = nil
+    end
 end
 
 local function DrawUnit(unit, entry, ready, duration, limit)
@@ -387,12 +426,13 @@ local function DrawUnit(unit, entry, ready, duration, limit)
     if entry.overlay and entry.overlay ~= w and entry.overlay.unit == unit then Hide(entry.overlay) end
     entry.overlay, w.unit = w, unit
     if limit and secretMax then
-        if not pcall(ApplyMaxHealthAlpha, w.root, maxHealth, limit) then
+        if not pcall(ApplyMaxHealthClip, w, bar, maxHealth, limit) then
+            ClearMaxHealthClip(w)
             if PlainCall(UnitIsBossMob, unit) == true or PlainCall(UnitClassification, unit) == "worldboss" then return end
-            w.root:SetAlpha(1)
+            iconOnly = true
         end
-    else
-        w.root:SetAlpha(1)
+    elseif w.maxHealthBar ~= nil then
+        ClearMaxHealthClip(w)
     end
     ns.DrawOverlay(w, bar, anchor, maxHealth, health, ns.threshold, ns.texture, ready, iconOnly, matchStrata,
         duration, nil, percentUnit)

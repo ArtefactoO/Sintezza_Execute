@@ -49,8 +49,17 @@ local function NewContext(addon)
     end
     function methods:SetParent(parent) self.parent = parent end
     function methods:SetAllPoints(target) self.allPoints = target end
-    function methods:SetPoint(...) self.point = { ... } end
-    function methods:ClearAllPoints() self.point = nil end
+    function methods:SetPoint(point, relative, ...)
+        if controls.rejectThresholdAnchor and relative and relative.kind == "Texture" and point == "LEFT" then
+            error("threshold clip anchor rejected")
+        end
+        self.point = { point, relative, ... }
+        self.points = self.points or {}
+        self.points[point] = self.point
+    end
+    function methods:ClearAllPoints()
+        self.point, self.points, self.allPoints = nil, nil, nil
+    end
     function methods:SetSize(width, height) self.width, self.height = width, height end
     function methods:SetWidth(width) self.width = width end
     function methods:SetHeight(height) self.height = height end
@@ -77,6 +86,7 @@ local function NewContext(addon)
         end
     end
     function methods:SetValue(value)
+        if controls.rejectSecretBarValue and IsSecret(value) then error("secret bar value rejected") end
         if self.minimum and not IsSecret(value) and not IsSecret(self.maximum) then
             value = math.max(self.minimum, math.min(self.maximum, value))
         end
@@ -165,6 +175,20 @@ local assertions = 0
 local function Check(value, message)
     assertions = assertions + 1
     assert(value, message)
+end
+
+local function ThresholdClipLeft(overlay, bar, width)
+    local display = overlay.display
+    assert(display.clipped)
+    local clipAnchor = display.points.LEFT
+    local fill = clipAnchor[2]
+    local gate = fill.parent
+    assert(clipAnchor[3] == "RIGHT" and fill == gate.barTexture)
+    assert(gate.points.LEFT[2] == bar and gate.points.RIGHT[2] == bar)
+    local left = gate.points.LEFT[4]
+    local right = width + gate.points.RIGHT[4]
+    local ratio = (gate.value.value - gate.minimum) / (gate.maximum - gate.minimum)
+    return left + (right - left) * math.max(0, math.min(1, ratio))
 end
 
 local function Snapshot(overlay)
@@ -297,6 +321,56 @@ return function(addon)
     state.cooldownInfo = { isActive = true, isOnGCD = true }
     live.RefreshPlates(true)
     Check(created.window.shown, "global cooldown preserves ready state")
+    live.db.iconCooldown, live.db.minExecutePercent = "SHOW", 10
+    state.combat = true
+    state.maximum = MakeSecret("max", 6000)
+    live.RefreshPlates()
+    Check(created.marker.parent == created.display and created.window.parent == created.display,
+        "marker and icon share the clipping frame")
+    Check(created.marker.shown and created.window.shown and ThresholdClipLeft(created, customBar, 120) <= 0,
+        "secret maximum at exactly 10 percent shows the overlay")
+    local filter = created.maxHealthGate
+    Check(rawequal(filter.value, state.maximum) and filter.rangeWrites == 1,
+        "filter sends the hidden health directly to the bar")
+    state.maximum = MakeSecret("max", 6001)
+    live.RefreshPlates()
+    Check(ThresholdClipLeft(created, customBar, 120) > 120 + 1 + 40 + 70 and filter.rangeWrites == 1,
+        "one HP over the limit clips even the largest outward-offset icon")
+    live.db.minExecutePercent = 5
+    live.RefreshPlates()
+    Check(filter.minimum == 12000 and filter.maximum == 12001 and ThresholdClipLeft(created, customBar, 120) <= 0,
+        "changing the existing setting moves the cutoff on the current plate")
+    live.db.minExecutePercent = 0
+    live.RefreshPlates()
+    Check(not created.display.clipped and created.marker.shown and created.window.shown,
+        "zero disables the secret-health filter")
+    live.db.minExecutePercent = 10
+    state.rejectThresholdAnchor = true
+    live.RefreshPlates()
+    Check(not created.display.clipped and not created.marker.shown and created.window.shown,
+        "a rejected anchor hides the marker and fill and preserves the combat icon")
+    env.UnitClassification = function() return "worldboss" end
+    live.RefreshPlates()
+    Check(not created.marker.shown and not created.window.shown, "a rejected anchor preserves the boss fallback")
+    env.UnitClassification, state.rejectThresholdAnchor = nil, false
+    live.RefreshPlates()
+    Check(ThresholdClipLeft(created, customBar, 120) > 120,
+        "a later successful reattachment restores the filter")
+    state.rejectSecretBarValue = true
+    live.RefreshPlates()
+    Check(not created.display.clipped and not created.marker.shown and created.window.shown,
+        "a rejected value after successful clipping clears stale clipping")
+    state.rejectSecretBarValue = false
+    state.maximum = 6000
+    live.RefreshPlates()
+    Check(not created.display.clipped and created.marker.shown, "public health at the cutoff uses the direct filter")
+    state.maximum = 6001
+    live.RefreshPlates()
+    Check(not created.marker.shown and not created.window.shown, "public health above the cutoff hides the overlay")
+    state.maximum = MakeSecret("max", 6001)
+    live.RemovePlate("nameplate1")
+    live.AddPlate("nameplate1")
+    Check(ThresholdClipLeft(created, customBar, 120) > 120, "reused nameplate applies the current hidden maximum")
     local unsupported, missing, host, emptyBar, Hidden = NewContext(addon)
     missing.noGate, missing.curveFailure = true, true
     local withoutGate = unsupported.CreateOverlay(host)
