@@ -59,7 +59,8 @@ local function InitializeDatabase()
     end
     if not COOLDOWNS[db.iconCooldown] then db.iconCooldown = db.hideCooldown == false and "SHOW" or "HIDE" end
     db.hideCooldown = nil
-    db.version = 7
+    db.minExecutePercent = nil
+    db.version = 8
     if type(db.enabled) ~= "boolean" then db.enabled = true end
     if type(db.showZone) ~= "boolean" then db.showZone = true end
     if type(db.showMarker) ~= "boolean" then db.showMarker = true end
@@ -86,7 +87,6 @@ local function InitializeDatabase()
     db.minimap.hide = db.minimap.hide == true
     db.minimap.minimapPos = Number(db.minimap.minimapPos, 195, -360, 360)
     db.margin = math.floor(Number(db.margin, 0, 0, 50))
-    db.minExecutePercent = math.floor(Number(db.minExecutePercent, 5, 0, 100))
     db.zoneColor = Color(db.zoneColor, LEGACY_ZONE)
     db.markerStyle = {
         anchor = ANCHORS[style.anchor] and style.anchor or "AUTO",

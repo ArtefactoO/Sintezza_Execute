@@ -12,7 +12,7 @@ Install and enable **[Sintezza Theme](https://github.com/ArtefactoO/Sintezza_The
 - **Warrior · Execute** and **Paladin · Hammer of Wrath.** The marker shows the health requirement of 20% or less. Casting still depends on resources, range and any other ability requirements.
 - **Warlock · Soul Fire with Decimation.** The marker shows the phase below 35% when both the spell and the talent are learned. The talent effect still needs to trigger to empower Soul Fire.
 
-**Minimum threshold to show** filters the Shadow Word: Death indicator by the size of the execute zone as a share of maximum health. Set it to 0% to turn it off. Combat and location settings can limit where the indicator appears. The preview uses the character's detected ability and lets you change target health, simulate cooldown where applicable, and switch between combat scenarios.
+Use the marker and fill toggles to control the threshold artwork. The icon shows when the target reaches the ability's threshold, subject to the cooldown setting. Combat and location settings limit where the indicator appears. The preview lets you change target health, simulate cooldown where applicable, and switch between combat scenarios.
 
 ## Open settings
 

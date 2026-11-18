@@ -91,10 +91,6 @@ function ns.Threshold(minimum, margin)
     if minimum then return math.floor(minimum * (100 - margin) / 100) end
 end
 
-function ns.MaxHealthLimit(threshold, percent)
-    if percent > 0 then return math.floor(threshold * 100 / percent) end
-end
-
 function ns.PassesDisplayConditions(db, inCombat, inDungeonOrRaid)
     if db.combatOnly and not inCombat then return false end
     if db.location == "INSIDE" then return inDungeonOrRaid == true end

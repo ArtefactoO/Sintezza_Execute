@@ -72,12 +72,10 @@ function ns.RefreshPreview()
     if not canTestCooldown and cooldownStart then StopCooldownTest(ui.testCooldown) end
     local onCooldown = cooldownStart and GetTime() < cooldownStart + ns.PREVIEW_COOLDOWN
     local enabled = db.enabled and (db.showZone or db.showMarker or db.showIcon)
-    local maxHealthLimit = minimum and ns.MaxHealthLimit(threshold, db.minExecutePercent)
-    local filtered = maxHealthLimit and MAX_HEALTH > maxHealthLimit
     local meetsConditions = ns.PassesDisplayConditions(db, scenario ~= "outsideCombat", scenario == "instance")
     ui.bar:SetValue(current)
     ui.hp:SetText(("%d / %d"):format(current, MAX_HEALTH))
-    if threshold and enabled and not filtered and meetsConditions then
+    if threshold and enabled and meetsConditions then
         ns.DrawOverlay(ui.overlay, ui.bar, ui.bar, percent and 100 or MAX_HEALTH, measured, threshold,
             ns.texture, not onCooldown, nil, nil, nil, onCooldown and cooldownStart)
     else
@@ -86,7 +84,6 @@ function ns.RefreshPreview()
     local status
     if not threshold then status = L.NO_EXECUTE
     elseif not enabled then status = L.DISABLED
-    elseif filtered then status = L.FILTERED_HEALTH
     elseif not meetsConditions then status = L.FILTERED_CONDITIONS
     elseif not ns.InExecuteRange(measured, threshold, rule) then status = L.ABOVE
     elseif onCooldown then status = db.showIcon and cooldownFeedback[db.iconCooldown] or L.TEST_ICON_OFF
@@ -298,7 +295,6 @@ local function BuildNameplateSettings(parent, W, T)
     ui.detected:SetJustifyH("RIGHT")
     ui.detected:SetWordWrap(false)
     Slider(L.MARGIN, 0, 50, Get("margin"), Set("margin"), "%", nil, L.MARGIN_HELP, DamageThreshold)
-    Slider(L.MIN_EXECUTE_PERCENT, 0, 100, Get("minExecutePercent"), Set("minExecutePercent"), "%", nil, L.MIN_HP_HINT, DamageThreshold)
     Heading(L.WHEN)
     Toggle(L.ENABLED, "enabled")
     Toggle(L.COMBAT_ONLY, "combatOnly")

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.2
+
+- Draw the execute threshold marker and zone above the EllesmereUI health fill and selection effects.
+- Omit the execute indicator from totem nameplates when the client identifies their creature type.
+- Remove the minimum display threshold and keep marker and fill visibility independent of the target's health and the icon.
+- Keep the execute overlay aligned when EllesmereUI animates a nameplate's scale.
+
 ## 1.6.1
 
 - Apply the minimum threshold to Shadow Word: Death nameplates even when maximum health is secret. Hide the threshold marker and fill if the client rejects clipping.

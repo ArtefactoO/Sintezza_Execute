@@ -4,8 +4,7 @@ local _, ns = ...
 local shared = Sintezza_Theme
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local ICON_TRAVEL = 10000
--- Leave room for the largest icon and its offsets beyond the health bar.
-local THRESHOLD_CLIP_PADDING = 128
+local TOTEM_CREATURE_TYPE = 11
 local ZONE_ALPHA = .35
 local units, overlays = {}, setmetatable({}, { __mode = "k" })
 local cooldownSpell, lastReady, lastDuration
@@ -27,6 +26,16 @@ local function VisibleBar(frame)
     if not Visible(frame) then return false end
     local alpha = PlainCall(frame.GetEffectiveAlpha, frame)
     return alpha == nil or alpha > .01
+end
+
+local function IsTotem(unit, entry)
+    if entry.isTotem == nil then
+        local ok, _, creatureType = pcall(UnitCreatureType, unit)
+        if ok and not ns.IsSecret(creatureType) and type(creatureType) == "number" and creatureType > 0 then
+            entry.isTotem = creatureType == TOTEM_CREATURE_TYPE
+        end
+    end
+    return entry.isTotem
 end
 
 local function FindBar(plate, unit)
@@ -90,19 +99,27 @@ local function UpdatePulse(w)
     SetPulsePlaying(w.glowPulse, glow)
 end
 
-function ns.CreateOverlay(host)
-    local root = CreateFrame("Frame", nil, host)
+function ns.CreateOverlay(host, parent)
+    parent = parent or host
+    local root = CreateFrame("Frame", nil, parent)
     root:SetAllPoints(host)
     root:EnableMouse(false)
-    local display = CreateFrame("Frame", nil, root)
-    display:SetAllPoints(root)
-    display:EnableMouse(false)
-    local marker = InvisibleBar(display)
+    local markerParent, markerLayer = root, nil
+    if parent ~= host and UIParent then
+        -- Lift only the bar artwork out of the nameplate's render batch.
+        markerLayer = CreateFrame("Frame", nil, UIParent)
+        markerLayer:EnableMouse(false)
+        markerLayer:SetIgnoreParentScale(true)
+        markerLayer:SetFrameStrata("HIGH")
+        markerLayer:SetAllPoints(root)
+        markerParent = markerLayer
+    end
+    local marker = InvisibleBar(markerParent)
     local span = marker:GetStatusBarTexture()
     local zone = marker:CreateTexture(nil, "ARTWORK")
     zone:SetAllPoints(span)
     local edge = marker:CreateTexture(nil, "OVERLAY")
-    local window = CreateFrame("Frame", nil, display)
+    local window = CreateFrame("Frame", nil, root)
     window:EnableMouse(false)
     window:SetClipsChildren(true)
     local supportsGate = window.SetIgnoringChildrenForBounds
@@ -131,8 +148,9 @@ function ns.CreateOverlay(host)
     local border = ns.Theme:FrameIcon(iconFrame, icon)
     marker:Hide()
     window:Hide()
-    local overlay = { root = root, display = display, marker = marker, span = span, zone = zone, edge = edge, window = window,
-        gate = gate, clip = clip, holder = holder, iconFrame = iconFrame, icon = icon, border = border, glow = glow }
+    local overlay = { root = root, parent = parent, marker = marker, span = span, zone = zone,
+        edge = edge, window = window, gate = gate, clip = clip, holder = holder, iconFrame = iconFrame, icon = icon,
+        border = border, glow = glow, markerLayer = markerLayer }
     window:SetScript("OnHide", function()
         SetPulsePlaying(overlay.scalePulse, false)
         SetPulsePlaying(overlay.glowPulse, false)
@@ -146,21 +164,19 @@ local function Hide(w)
 end
 ns.HideOverlay = Hide
 
-local function Attach(w, bar, anchor, matchStrata, db)
+local function Attach(w, bar, anchor, ellesmere, db)
     local x, y = db.iconOffsetX, db.iconOffsetY
-    if w.bar == bar and w.anchor == anchor and w.matchStrata == matchStrata and w.x == x and w.y == y then return end
+    if w.bar == bar and w.anchor == anchor and w.ellesmere == ellesmere and w.x == x and w.y == y then return end
     w.marker:ClearAllPoints()
     w.marker:SetAllPoints(bar)
     w.window:ClearAllPoints()
     w.window:SetPoint("LEFT", anchor, "RIGHT", 1 + x, y)
-    if matchStrata then
-        local strata = PlainCall(bar.GetFrameStrata, bar)
-        if type(strata) == "string" then
-            w.marker:SetFrameStrata(strata)
-            w.window:SetFrameStrata(strata)
-        end
+    if ellesmere then
+        w.root:SetFrameStrata("MEDIUM")
+        w.window:SetFrameStrata("MEDIUM")
+        w.marker:SetFrameStrata(w.markerLayer and "HIGH" or "MEDIUM")
     end
-    w.bar, w.anchor, w.matchStrata, w.level = bar, anchor, matchStrata, nil
+    w.bar, w.anchor, w.ellesmere, w.level = bar, anchor, ellesmere, nil
     w.x, w.y = x, y
 end
 
@@ -290,7 +306,7 @@ local function UpdateIconHealth(w, health, threshold, percentUnit)
         if threshold <= 0 then return false end
         if not pcall(ApplyHealthAlpha, w.holder, health, threshold) then
             if not w.gate then return false end
-            w.gate:SetMinMaxValues(0, health)
+            if not pcall(w.gate.SetMinMaxValues, w.gate, 0, health) then return false end
             w.gate:SetValue(threshold)
             useGate = true
             w.holder:SetAlpha(1)
@@ -309,25 +325,8 @@ local function UpdateIconHealth(w, health, threshold, percentUnit)
     return true
 end
 
-function ns.DrawOverlay(w, bar, anchor, maxHealth, health, threshold, texture, ready, iconOnly, matchStrata,
-    duration, previewStart, percentUnit)
+local function DrawIcon(w, health, threshold, texture, ready, duration, previewStart, percentUnit)
     local db = ns.db
-    Attach(w, bar, anchor, matchStrata, db)
-    UpdateStyle(w, bar, db)
-    if (db.showZone or db.showMarker) and not iconOnly then
-        w.zone:SetShown(db.showZone)
-        w.edge:SetShown(db.showMarker)
-        local secretMaximum = ns.IsSecret(maxHealth)
-        if secretMaximum or w.markerMaximum ~= maxHealth or w.markerThreshold ~= threshold then
-            w.marker:SetMinMaxValues(0, maxHealth)
-            w.marker:SetValue(threshold)
-            w.markerMaximum = not secretMaximum and maxHealth or nil
-            w.markerThreshold = threshold
-        end
-        w.marker:Show()
-    else
-        w.marker:Hide()
-    end
     if not db.showIcon or not UpdateIconHealth(w, health, threshold, percentUnit) then
         w.window:Hide()
         return
@@ -339,7 +338,13 @@ function ns.DrawOverlay(w, bar, anchor, maxHealth, health, threshold, texture, r
     local cooldownMode = db.iconCooldown
     if (cooldownMode == "HIDE" or cooldownMode == "DIM") and ns.IsSecret(ready) then
         local coolingAlpha = cooldownMode == "HIDE" and 0 or .35
-        pcall(w.window.SetAlphaFromBoolean, w.window, ready, 1, coolingAlpha)
+        if not pcall(w.window.SetAlphaFromBoolean, w.window, ready, 1, coolingAlpha) then
+            if cooldownMode == "HIDE" then
+                w.window:Hide()
+                return
+            end
+            w.window:SetAlpha(1)
+        end
     elseif cooldownMode == "HIDE" and ready ~= true then
         w.window:Hide()
         return
@@ -355,86 +360,124 @@ function ns.DrawOverlay(w, bar, anchor, maxHealth, health, threshold, texture, r
     UpdatePulse(w)
 end
 
-local function ApplyMaxHealthClip(w, bar, maxHealth, limit)
-    local gate = w.maxHealthGate
-    if not gate then
-        gate = InvisibleBar(w.root)
-        gate:SetHeight(1)
-        w.maxHealthGate = gate
+local function DrawMarker(w, maxHealth, threshold, iconOnly)
+    local db = ns.db
+    if iconOnly or not (db.showZone or db.showMarker) then
+        w.marker:Hide()
+        return
     end
-    if w.maxHealthBar ~= bar then
-        local padding = THRESHOLD_CLIP_PADDING
-        gate:ClearAllPoints()
-        gate:SetPoint("LEFT", bar, "LEFT", -padding, 0)
-        gate:SetPoint("RIGHT", bar, "RIGHT", padding, 0)
-        local display = w.display
-        display:SetIgnoringChildrenForBounds(true)
-        -- A failed anchor update still needs to be restored before drawing without the filter.
-        w.maxHealthBar = false
-        display:ClearAllPoints()
-        display:SetPoint("LEFT", gate:GetStatusBarTexture(), "RIGHT")
-        display:SetPoint("TOPRIGHT", bar, "TOPRIGHT", padding * 2, padding)
-        display:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", padding * 2, -padding)
-        w.maxHealthBar = bar
+
+    local secretMaximum = ns.IsSecret(maxHealth)
+    w.zone:SetShown(db.showZone)
+    w.edge:SetShown(db.showMarker)
+    if secretMaximum or w.markerMaximum ~= maxHealth or w.markerThreshold ~= threshold then
+        w.marker:SetMinMaxValues(0, maxHealth)
+        w.marker:SetValue(threshold)
+        w.markerMaximum = not secretMaximum and maxHealth or nil
+        w.markerThreshold = threshold
     end
-    if w.maxHealthLimit ~= limit then
-        -- Whole HP at or below the limit empties the bar. One HP over fills it and clips the overlay.
-        gate:SetMinMaxValues(limit, limit + 1)
-        w.maxHealthLimit = limit
+    w.marker:Show()
+end
+
+function ns.DrawOverlay(w, bar, anchor, maxHealth, health, threshold, texture, ready, iconOnly, ellesmere,
+    duration, previewStart, percentUnit)
+    Attach(w, bar, anchor, ellesmere, ns.db)
+    UpdateStyle(w, bar, ns.db)
+    DrawMarker(w, maxHealth, threshold, iconOnly)
+    DrawIcon(w, health, threshold, texture, ready, duration, previewStart, percentUnit)
+end
+
+local function MatchPlateScale(w, host, scale)
+    if not ns.IsSecret(scale) and type(scale) == "number" and scale > 0 and w.hostScale ~= scale then
+        w.root:SetScale(scale)
+        w.hostScale = scale
     end
-    gate:SetValue(maxHealth)
-    if not w.maxHealthClipping then
-        w.display:SetClipsChildren(true)
-        w.maxHealthClipping = true
+    if w.markerLayer then
+        local effective = PlainCall(host.GetEffectiveScale, host)
+        if type(effective) == "number" and effective > 0 and w.markerScale ~= effective then
+            w.markerLayer:SetScale(effective)
+            w.markerScale = effective
+        end
     end
 end
 
-local function ClearMaxHealthClip(w)
-    if w.maxHealthClipping then
-        w.display:SetClipsChildren(false)
-        w.maxHealthClipping = nil
+local function FollowEllesmereScale(host, scale)
+    local w = overlays[host]
+    if w and w.unit then pcall(MatchPlateScale, w, host, scale) end
+end
+
+local function CopyAlpha(frame, getter, host, previous)
+    local ok, alpha = pcall(getter, host)
+    if not ok or type(alpha) ~= "number" then return previous end
+    if ns.IsSecret(alpha) then
+        frame:SetAlpha(alpha)
+        return
     end
-    if w.maxHealthBar ~= nil then
-        w.display:ClearAllPoints()
-        w.display:SetAllPoints(w.root)
-        w.maxHealthBar = nil
+    if previous ~= alpha then frame:SetAlpha(alpha) end
+    return alpha
+end
+
+local function FollowEllesmereHide(host)
+    local w = overlays[host]
+    if w then Hide(w) end
+end
+
+local function MatchPlateAlpha(w, host)
+    w.hostAlpha = CopyAlpha(w.root, host.GetAlpha, host, w.hostAlpha)
+    if w.markerLayer then
+        w.markerAlpha = CopyAlpha(w.markerLayer, host.GetEffectiveAlpha, host, w.markerAlpha)
     end
 end
 
-local function DrawUnit(unit, entry, ready, duration, limit)
+local function FollowEllesmereAlpha(host)
+    local w = overlays[host]
+    if w and w.unit then pcall(MatchPlateAlpha, w, host) end
+end
+
+local function MatchPlateAppearance(w, host)
+    MatchPlateScale(w, host, PlainCall(host.GetScale, host))
+    MatchPlateAlpha(w, host)
+end
+
+local function DrawUnit(unit, entry, ready, duration)
     local plate = C_NamePlate.GetNamePlateForUnit(unit)
     if not Visible(plate) or PlainCall(UnitCanAttack, "player", unit) == false
-        or PlainCall(UnitIsDead, unit) == true then return end
-    local host, bar, anchor, iconOnly, matchStrata = FindBar(plate, unit)
+        or PlainCall(UnitIsDead, unit) == true or IsTotem(unit, entry) then return end
+    local host, bar, anchor, iconOnly, ellesmere = FindBar(plate, unit)
     if not host then return end
-    local percentUnit, maxHealth, health, secretMax
+    local percentUnit, maxHealth, health
     if ns.rule.percent then
         percentUnit, maxHealth = unit, 100
     else
         maxHealth, health = UnitHealthMax(unit), UnitHealth(unit, false)
         if type(maxHealth) ~= "number" or type(health) ~= "number" then return end
-        secretMax = ns.IsSecret(maxHealth)
-        if not secretMax and (maxHealth <= 0 or (limit and maxHealth > limit)) then return end
+        if not ns.IsSecret(maxHealth) and maxHealth <= 0 then return end
     end
+    -- Ellesmere flattens its own render tree. Draw on a sibling attached to the same native nameplate.
+    local parent = ellesmere and plate or host
     local w = overlays[host]
     if not w then
-        w = ns.CreateOverlay(host)
+        w = ns.CreateOverlay(host, parent)
         overlays[host] = w
-    elseif w.unit ~= unit then
+        -- Ellesmere changes scale every animation frame between Execute refreshes.
+        if ellesmere then pcall(hooksecurefunc, host, "SetScale", FollowEllesmereScale) end
+        if w.markerLayer then
+            pcall(hooksecurefunc, host, "SetAlpha", FollowEllesmereAlpha)
+            pcall(hooksecurefunc, host, "SetAlphaFromBoolean", FollowEllesmereAlpha)
+            pcall(host.HookScript, host, "OnHide", FollowEllesmereHide)
+        end
+    elseif w.unit ~= unit or w.parent ~= parent then
         Hide(w)
+        if w.parent ~= parent then
+            w.root:SetParent(parent)
+            w.parent = parent
+        end
+        w.bar = nil
     end
     if entry.overlay and entry.overlay ~= w and entry.overlay.unit == unit then Hide(entry.overlay) end
     entry.overlay, w.unit = w, unit
-    if limit and secretMax then
-        if not pcall(ApplyMaxHealthClip, w, bar, maxHealth, limit) then
-            ClearMaxHealthClip(w)
-            if PlainCall(UnitIsBossMob, unit) == true or PlainCall(UnitClassification, unit) == "worldboss" then return end
-            iconOnly = true
-        end
-    elseif w.maxHealthBar ~= nil then
-        ClearMaxHealthClip(w)
-    end
-    ns.DrawOverlay(w, bar, anchor, maxHealth, health, ns.threshold, ns.texture, ready, iconOnly, matchStrata,
+    if ellesmere then MatchPlateAppearance(w, host) end
+    ns.DrawOverlay(w, bar, anchor, maxHealth, health, ns.threshold, ns.texture, ready, iconOnly, ellesmere,
         duration, nil, percentUnit)
     return true
 end
@@ -497,10 +540,8 @@ function ns.RefreshPlates(fromCooldownEvent)
         return
     end
     if not active then return end
-    local limit
-    if not ns.rule.percent then limit = ns.MaxHealthLimit(ns.threshold, db.minExecutePercent) end
     for unit, entry in pairs(units) do
-        local ok, drawn = pcall(DrawUnit, unit, entry, ready, duration, limit)
+        local ok, drawn = pcall(DrawUnit, unit, entry, ready, duration)
         if (not ok or not drawn) and entry.overlay and entry.overlay.unit == unit then Hide(entry.overlay) end
     end
 end
