@@ -102,7 +102,7 @@ local function NewContext(addon)
     function methods:SetBlendMode(mode) self.blend = mode end
     function methods:CreateTexture() return Object("Texture", self) end
     function methods:SetMinMaxValues(minimum, maximum)
-        if self.rejectSecretRange and IsSecret(maximum) then error("secret icon range rejected") end
+        if self.rejectSecretRange and IsSecret(maximum) then error("secret range rejected") end
         self.minimum, self.maximum = minimum, maximum
         self.rangeWrites = (self.rangeWrites or 0) + 1
         counts.ranges = counts.ranges + 1
@@ -118,6 +118,14 @@ local function NewContext(addon)
         self.valueWrites = (self.valueWrites or 0) + 1
         counts.values = counts.values + 1
     end
+    function methods:GetClipOverlap(clip)
+        local minimum, maximum, value = Unwrap(self.minimum), Unwrap(self.maximum), Unwrap(self.value)
+        local fill = math.max(0, math.min(1, (value - minimum) / (maximum - minimum)))
+        assert(self.point[1] == "RIGHT" and clip.point[1] == "RIGHT")
+        local inset = self.reversed and fill or (1 - fill)
+        assert(clip.point[3] == (self.reversed and "LEFT" or "RIGHT"))
+        return math.max(0, clip.width - inset * self.width)
+    end
     function methods:SetDrawEdge(value) self.drawEdge = value end
     function methods:SetHideCountdownNumbers(value) self.hideNumbers = value end
     function methods:SetDrawSwipe(value) self.swipe = value end
@@ -131,8 +139,7 @@ local function NewContext(addon)
         function curve:SetType(value) self.kind = value end
         function curve:AddPoint(x, y) self.points[#self.points + 1] = { x, y } end
         function curve:Evaluate(value)
-            if controls.curveFailure then error("curve unavailable") end
-            if IsSecret(value) then return Secret("alpha", 1) end
+            if IsSecret(value) then error("curve cannot evaluate a secret input") end
             local result = self.points[1][2]
             for _, point in ipairs(self.points) do
                 if value >= point[1] then result = point[2] end
@@ -267,10 +274,15 @@ return function(addon)
     Check(overlay.marker.rangeWrites == beforeSecret + 2, "secret range is never compared or cached")
     Draw(1800, 900, 550, true)
     Check(overlay.marker.maximum == 1800, "public range after secret range")
-    controls.curveFailure = true
     local hiddenFull = Secret("maximum", 550)
     Draw(Secret("maximum", 551), hiddenHealth, 550, true)
     Check(overlay.useGate and overlay.holder.alpha == 1, "clipping fallback for hidden health")
+    Draw(1800, Secret("health above threshold", 551), 550, true)
+    Check(overlay.gate:GetClipOverlap(overlay.clip) == 0, "one secret HP above the threshold clips the entire icon")
+    Draw(1800, Secret("health at threshold", 550), 550, true)
+    Check(overlay.gate:GetClipOverlap(overlay.clip) == overlay.clip.width, "the exact threshold reveals the entire icon")
+    Draw(1800, hiddenHealth, 550, true)
+    Check(overlay.gate:GetClipOverlap(overlay.clip) == overlay.clip.width, "health below the threshold keeps the entire icon")
     Draw(hiddenFull, hiddenHealth, 550, true)
     Check(overlay.marker.shown and overlay.window.shown, "hidden maximum within a single hit keeps the marker")
     ns.db.iconCooldown = "HIDE"
@@ -278,7 +290,6 @@ return function(addon)
     Check(overlay.marker.shown and not overlay.window.shown, "hidden HP with the icon on cooldown keeps the marker")
     Draw(hiddenFull, hiddenHealth, 550, Secret("ready", false))
     Check(overlay.marker.shown and overlay.window.alpha == 0, "secret cooldown only hides the icon")
-    controls.curveFailure = false
     ns.db.iconCooldown = "SHOW"
     Draw(1800, 200, 550, true)
     Check(not overlay.useGate, "public health returns from clipping fallback")
@@ -420,6 +431,15 @@ return function(addon)
     live.RefreshPlates()
     Check(created.marker.shown and rawequal(created.marker.maximum, state.maximum) and created.window.shown,
         "a large secret maximum never suppresses the marker or an eligible icon")
+    created.marker.rejectSecretRange = true
+    live.RefreshPlates()
+    Check(not created.marker.shown and created.window.shown, "a rejected marker range does not hide the icon")
+    state.maximum = 0
+    live.RefreshPlates()
+    Check(not created.marker.shown and created.window.shown, "an unavailable maximum does not hide the icon")
+    state.maximum = 30000
+    live.RefreshPlates()
+    Check(created.marker.shown and created.marker.maximum == 30000, "the marker recovers when maximum health returns")
     live.RemovePlate("nameplate1")
     created.root.strata, created.marker.strata, created.window.strata = nil, nil, nil
     live.AddPlate("nameplate1")
@@ -450,12 +470,12 @@ return function(addon)
         "a newly readable totem type hides any previous overlay")
     local unsupported, missing, host, emptyBar, Hidden = NewContext(addon)
     local protected = unsupported.CreateOverlay(host)
-    protected.gate.rejectSecretRange, missing.curveFailure = true, true
+    protected.gate.SetValue = function() error("secret value unavailable") end
     unsupported.DrawOverlay(protected, emptyBar, emptyBar, Hidden("maximum", 600), Hidden("health", 200),
         600, "spell", true)
     Check(protected.marker.shown and not protected.window.shown,
         "a rejected icon clip keeps the marker")
-    missing.noGate, missing.curveFailure = true, true
+    missing.noGate = true
     local withoutGate = unsupported.CreateOverlay(host)
     unsupported.DrawOverlay(withoutGate, emptyBar, emptyBar, 1800, Hidden("health", 200),
         600, "spell", true)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.3
+
+- Show the Shadow Word: Death icon at the correct HP threshold on nameplates with restricted health, including in dungeons and raids.
+- Keep the execute icon working when maximum health is unavailable for the threshold marker.
+
 ## 1.6.2
 
 - Draw the execute threshold marker and zone above the EllesmereUI health fill and selection effects.

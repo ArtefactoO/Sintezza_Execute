@@ -3,12 +3,10 @@
 local _, ns = ...
 local shared = Sintezza_Theme
 local WHITE = "Interface\\Buttons\\WHITE8X8"
-local ICON_TRAVEL = 10000
 local TOTEM_CREATURE_TYPE = 11
 local ZONE_ALPHA = .35
 local units, overlays = {}, setmetatable({}, { __mode = "k" })
 local cooldownSpell, lastReady, lastDuration
-local healthCurve, healthCurveThreshold
 local percentCurve, percentCurveRule
 local driver = CreateFrame("Frame")
 driver:Hide()
@@ -127,12 +125,13 @@ function ns.CreateOverlay(host, parent)
     local gate, clip
     if supportsGate then
         gate = InvisibleBar(window)
+        gate:SetReverseFill(true)
         gate:SetPoint("RIGHT", window, "RIGHT")
         clip = CreateFrame("Frame", nil, gate)
         clip:EnableMouse(false)
         clip:SetClipsChildren(true)
         clip:SetIgnoringChildrenForBounds(true)
-        clip:SetPoint("RIGHT", gate:GetStatusBarTexture(), "RIGHT")
+        clip:SetPoint("RIGHT", gate:GetStatusBarTexture(), "LEFT")
     end
     local holder = CreateFrame("Frame", nil, window)
     holder:SetPoint("RIGHT", window, "RIGHT")
@@ -192,7 +191,7 @@ local function UpdateStyle(w, bar, db)
         w.window:SetSize(size, size)
         w.holder:SetSize(size, size)
         if w.gate then
-            w.gate:SetSize(ICON_TRAVEL, size)
+            w.gate:SetSize(size * 2, size)
             w.clip:SetSize(size, size)
         end
         w.iconFrame:SetSize(db.iconSize, db.iconSize)
@@ -270,18 +269,6 @@ local function DrawCooldown(w, duration, previewStart)
     frame:SetShown(ok == true)
 end
 
-local function ApplyHealthAlpha(holder, health, threshold)
-    if not healthCurve or healthCurveThreshold ~= threshold then
-        local curve = C_CurveUtil.CreateCurve()
-        curve:SetType(Enum.LuaCurveType.Step)
-        curve:AddPoint(0, 0)
-        curve:AddPoint(.5, 1)
-        curve:AddPoint(threshold + .5, 0)
-        healthCurve, healthCurveThreshold = curve, threshold
-    end
-    holder:SetAlpha(healthCurve:Evaluate(health))
-end
-
 local function PercentAlpha(unit, rule)
     if not percentCurve or percentCurveRule ~= rule then
         local curve = C_CurveUtil.CreateCurve()
@@ -303,14 +290,15 @@ local function UpdateIconHealth(w, health, threshold, percentUnit)
         if not ns.IsSecret(alpha) and (type(alpha) ~= "number" or alpha <= 0) then return false end
         if not pcall(w.holder.SetAlpha, w.holder, alpha) then return false end
     elseif ns.IsSecret(health) then
-        if threshold <= 0 then return false end
-        if not pcall(ApplyHealthAlpha, w.holder, health, threshold) then
-            if not w.gate then return false end
-            if not pcall(w.gate.SetMinMaxValues, w.gate, 0, health) then return false end
-            w.gate:SetValue(threshold)
-            useGate = true
-            w.holder:SetAlpha(1)
+        if not w.gate or threshold <= 0 then return false end
+        if w.gateThreshold ~= threshold then
+            -- One HP above the threshold fills the bar and moves the clip off the icon.
+            w.gate:SetMinMaxValues(threshold, threshold + 1)
+            w.gateThreshold = threshold
         end
+        if not pcall(w.gate.SetValue, w.gate, health) then return false end
+        useGate = true
+        w.holder:SetAlpha(1)
     else
         if not ns.InExecuteRange(health, threshold, ns.rule) then return false end
         w.holder:SetAlpha(1)
@@ -371,7 +359,15 @@ local function DrawMarker(w, maxHealth, threshold, iconOnly)
     w.zone:SetShown(db.showZone)
     w.edge:SetShown(db.showMarker)
     if secretMaximum or w.markerMaximum ~= maxHealth or w.markerThreshold ~= threshold then
-        w.marker:SetMinMaxValues(0, maxHealth)
+        if secretMaximum then
+            if not pcall(w.marker.SetMinMaxValues, w.marker, 0, maxHealth) then
+                w.markerMaximum = nil
+                w.marker:Hide()
+                return
+            end
+        else
+            w.marker:SetMinMaxValues(0, maxHealth)
+        end
         w.marker:SetValue(threshold)
         w.markerMaximum = not secretMaximum and maxHealth or nil
         w.markerThreshold = threshold
@@ -449,9 +445,12 @@ local function DrawUnit(unit, entry, ready, duration)
     if ns.rule.percent then
         percentUnit, maxHealth = unit, 100
     else
-        maxHealth, health = UnitHealthMax(unit), UnitHealth(unit, false)
-        if type(maxHealth) ~= "number" or type(health) ~= "number" then return end
-        if not ns.IsSecret(maxHealth) and maxHealth <= 0 then return end
+        health = UnitHealth(unit, false)
+        if type(health) ~= "number" then return end
+        if not iconOnly and (ns.db.showZone or ns.db.showMarker) then
+            maxHealth = UnitHealthMax(unit)
+            iconOnly = type(maxHealth) ~= "number" or (not ns.IsSecret(maxHealth) and maxHealth <= 0)
+        end
     end
     -- Ellesmere flattens its own render tree. Draw on a sibling attached to the same native nameplate.
     local parent = ellesmere and plate or host
