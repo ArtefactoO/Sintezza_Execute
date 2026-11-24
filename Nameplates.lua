@@ -5,6 +5,7 @@ local shared = Sintezza_Theme
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 local TOTEM_CREATURE_TYPE = 11
 local ZONE_ALPHA = .35
+local LIFTED_MARKER_STRATA = "BACKGROUND"
 local units, overlays = {}, setmetatable({}, { __mode = "k" })
 local cooldownSpell, lastReady, lastDuration
 local percentCurve, percentCurveRule
@@ -108,7 +109,7 @@ function ns.CreateOverlay(host, parent)
         markerLayer = CreateFrame("Frame", nil, UIParent)
         markerLayer:EnableMouse(false)
         markerLayer:SetIgnoreParentScale(true)
-        markerLayer:SetFrameStrata("HIGH")
+        markerLayer:SetFrameStrata(LIFTED_MARKER_STRATA)
         markerLayer:SetAllPoints(root)
         markerParent = markerLayer
     end
@@ -173,7 +174,7 @@ local function Attach(w, bar, anchor, ellesmere, db)
     if ellesmere then
         w.root:SetFrameStrata("MEDIUM")
         w.window:SetFrameStrata("MEDIUM")
-        w.marker:SetFrameStrata(w.markerLayer and "HIGH" or "MEDIUM")
+        w.marker:SetFrameStrata(w.markerLayer and LIFTED_MARKER_STRATA or "MEDIUM")
     end
     w.bar, w.anchor, w.ellesmere, w.level = bar, anchor, ellesmere, nil
     w.x, w.y = x, y
@@ -359,15 +360,7 @@ local function DrawMarker(w, maxHealth, threshold, iconOnly)
     w.zone:SetShown(db.showZone)
     w.edge:SetShown(db.showMarker)
     if secretMaximum or w.markerMaximum ~= maxHealth or w.markerThreshold ~= threshold then
-        if secretMaximum then
-            if not pcall(w.marker.SetMinMaxValues, w.marker, 0, maxHealth) then
-                w.markerMaximum = nil
-                w.marker:Hide()
-                return
-            end
-        else
-            w.marker:SetMinMaxValues(0, maxHealth)
-        end
+        w.marker:SetMinMaxValues(0, maxHealth)
         w.marker:SetValue(threshold)
         w.markerMaximum = not secretMaximum and maxHealth or nil
         w.markerThreshold = threshold
@@ -379,7 +372,10 @@ function ns.DrawOverlay(w, bar, anchor, maxHealth, health, threshold, texture, r
     duration, previewStart, percentUnit)
     Attach(w, bar, anchor, ellesmere, ns.db)
     UpdateStyle(w, bar, ns.db)
-    DrawMarker(w, maxHealth, threshold, iconOnly)
+    if not pcall(DrawMarker, w, maxHealth, threshold, iconOnly) then
+        w.markerMaximum = nil
+        w.marker:Hide()
+    end
     DrawIcon(w, health, threshold, texture, ready, duration, previewStart, percentUnit)
 end
 
@@ -489,24 +485,24 @@ local function PlateCooldown(spellID, fromCooldownEvent, showTimer)
     if cooldownSpell ~= spellID then
         cooldownSpell, lastReady, lastDuration = spellID, nil, nil
     end
-    local ready = ns.ReadCooldownFlags(spellID, fromCooldownEvent)
-    if ready == true then
+    local ready, onGCD = ns.ReadCooldownFlags(spellID, fromCooldownEvent)
+    if ready then
         lastReady, lastDuration = true, nil
         return true
     end
-    if ready == false then lastReady = false end
-
-    local needsState = ready == nil and (fromCooldownEvent or not HasCooldownState(lastReady))
     local cooling = ns.IsSecret(lastReady) or lastReady == false
-    if needsState or (showTimer and cooling and (fromCooldownEvent or not lastDuration)) then
+    if fromCooldownEvent or not HasCooldownState(lastReady) or (showTimer and cooling and not lastDuration) then
         local duration = ns.CooldownDuration(spellID)
-        if needsState then
-            local observed = ns.CooldownReady(duration)
-            if HasCooldownState(observed) then lastReady = observed end
+        local observed = ns.CooldownReady(duration)
+        if HasCooldownState(observed) then
+            lastReady = observed
+        elseif onGCD ~= nil then
+            lastReady = onGCD
         end
         if showTimer and duration then lastDuration = duration end
     end
     if not HasCooldownState(lastReady) then return true end
+    if not ns.IsSecret(lastReady) and lastReady then lastDuration = nil end
     return lastReady, lastDuration
 end
 

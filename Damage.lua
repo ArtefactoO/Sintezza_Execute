@@ -129,7 +129,7 @@ function ns.ReadCooldownFlags(id, fromCooldownEvent)
     if fromCooldownEvent then
         -- isOnGCD is reliable only while handling SPELL_UPDATE_COOLDOWN.
         local gcd = info.isOnGCD
-        if not ns.IsSecret(gcd) and type(gcd) == "boolean" then return gcd end
+        if not ns.IsSecret(gcd) and type(gcd) == "boolean" then return nil, gcd end
     end
 end
 

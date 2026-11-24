@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.4
+
+- Use the shared solid preview background and thin border for the nameplate sample.
+- Draw the EllesmereUI threshold marker and fill below the world map.
+- Keep the execute icon stable when threshold artwork fails to update or the global cooldown overlaps the spell's cooldown.
+
 ## 1.6.3
 
 - Show the Shadow Word: Death icon at the correct HP threshold on nameplates with restricted health, including in dungeons and raids.

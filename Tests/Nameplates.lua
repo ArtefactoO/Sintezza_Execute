@@ -111,6 +111,7 @@ local function NewContext(addon)
         end
     end
     function methods:SetValue(value)
+        if self.rejectValue then error("status bar value rejected") end
         if self.minimum and not IsSecret(value) and not IsSecret(self.maximum) then
             value = math.max(self.minimum, math.min(self.maximum, value))
         end
@@ -170,7 +171,10 @@ local function NewContext(addon)
         type = function(value) return IsSecret(value) and "number" or realType(value) end,
         C_Spell = {
             GetSpellCooldown = function() return controls.cooldownInfo end,
-            GetSpellCooldownDuration = function() return controls.duration end,
+            GetSpellCooldownDuration = function(_, ignoreGCD)
+                assert(ignoreGCD, "spell duration must exclude the global cooldown")
+                return controls.duration
+            end,
         },
         InCombatLockdown = function() return controls.combat end,
         IsInInstance = function() return controls.inside, controls.instanceKind end,
@@ -343,11 +347,12 @@ return function(addon)
     env.EllesmereNameplates_NS = { plates = { nameplate1 = customPlate } }
     state.maximum, state.health, live.threshold = MakeSecret("max", 5211), 5211, 406
     live.RefreshPlates()
-    Check(created.marker.shown and created.edge.shown and not created.window.shown
-        and created.marker.strata == "HIGH" and created.root.strata == "MEDIUM"
+    Check(created.marker:IsVisible() and created.edge.shown and not created.window.shown
+        and created.marker:GetFrameStrata() == "BACKGROUND" and created.root:GetFrameStrata() == "MEDIUM"
         and created.marker:GetFrameLevel() > customBar:GetFrameLevel(),
-        "Ellesmere threshold renders above the health fill before the icon triggers")
+        "Ellesmere marker is below the map strata and keeps its health-bar level offset")
     Check(created.marker.parent == created.markerLayer and created.markerLayer.parent == env.UIParent
+        and created.markerLayer:GetFrameStrata() == "BACKGROUND"
         and created.markerLayer.allPoints == created.root and created.marker.allPoints == customBar
         and created.root.parent == livePlate and created.window.parent == created.root,
         "Ellesmere marker escapes the native plate while the icon stays with it")
@@ -421,6 +426,16 @@ return function(addon)
     state.cooldownInfo = { isActive = true, isOnGCD = true }
     live.RefreshPlates(true)
     Check(created.window.shown, "global cooldown preserves ready state")
+    state.duration = { IsZero = function() return false end }
+    live.RefreshPlates(true)
+    Check(not created.window.shown, "overlapping global cooldown does not reveal an icon on spell cooldown")
+    state.cooldownInfo = { isActive = true, isOnGCD = false }
+    state.duration = { IsZero = function() return true end }
+    live.RefreshPlates(true)
+    Check(created.window.shown, "zero spell cooldown keeps the icon visible despite active cooldown flags")
+    state.cooldownInfo, state.duration = nil, nil
+    live.RefreshPlates()
+    Check(created.window.shown, "missing data keeps the last ready state below the health threshold")
     live.db.iconCooldown, live.db.minExecutePercent = "SHOW", 100
     state.combat = true
     state.maximum, state.health = 30000, 900
@@ -434,6 +449,12 @@ return function(addon)
     created.marker.rejectSecretRange = true
     live.RefreshPlates()
     Check(not created.marker.shown and created.window.shown, "a rejected marker range does not hide the icon")
+    created.marker.rejectSecretRange, created.marker.rejectValue = false, true
+    live.RefreshPlates()
+    Check(not created.marker.shown and created.window.shown, "a rejected marker value does not hide the icon")
+    created.marker.rejectValue = false
+    live.RefreshPlates()
+    Check(created.marker.shown and created.window.shown, "the marker recovers after a rejected value")
     state.maximum = 0
     live.RefreshPlates()
     Check(not created.marker.shown and created.window.shown, "an unavailable maximum does not hide the icon")
@@ -443,7 +464,7 @@ return function(addon)
     live.RemovePlate("nameplate1")
     created.root.strata, created.marker.strata, created.window.strata = nil, nil, nil
     live.AddPlate("nameplate1")
-    Check(created.root.strata == "MEDIUM" and created.marker.strata == "HIGH" and created.window.strata == "MEDIUM",
+    Check(created.root.strata == "MEDIUM" and created.marker.strata == "BACKGROUND" and created.window.strata == "MEDIUM",
         "reused Ellesmere nameplate restores the overlay strata")
     local summons, summon, _, _, Private = NewContext(addon)
     local summonOverlay

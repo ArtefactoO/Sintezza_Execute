@@ -123,7 +123,6 @@ local function BuildPreview(frame, parent, W, T)
     stage:SetPoint("TOPRIGHT", scenarioRow, "BOTTOMRIGHT", 0, -6)
     stage:SetHeight(132)
     T:Backdrop(stage, T.input, T.lineSoft)
-    T:Surface(stage, .48, .34, T.frameAccent, "window-brush.tga")
     local stageInset, iconSpace = 12, 114
     local bar = CreateFrame("StatusBar", nil, stage)
     bar:SetPoint("LEFT", stage, "LEFT", stageInset, -3)
