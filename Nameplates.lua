@@ -28,6 +28,9 @@ local function VisibleBar(frame)
 end
 
 local function IsTotem(unit, entry)
+    if entry.creatureTypeUnit ~= unit then
+        entry.creatureTypeUnit, entry.isTotem = unit, nil
+    end
     if entry.isTotem == nil then
         local ok, _, creatureType = pcall(UnitCreatureType, unit)
         if ok and not ns.IsSecret(creatureType) and type(creatureType) == "number" and creatureType > 0 then
@@ -37,9 +40,22 @@ local function IsTotem(unit, entry)
     return entry.isTotem
 end
 
-local function FindBar(plate, unit)
+local function FindPlate(unit)
+    local plate = C_NamePlate.GetNamePlateForUnit(unit)
     local eui = EllesmereNameplates_NS
     local custom = type(eui) == "table" and type(eui.plates) == "table" and eui.plates[unit]
+    if not plate and type(custom) == "table" and custom.nameplate then
+        -- Ellesmere can retain the frame under the original event token after a swap.
+        local owner = custom.nameplate.namePlateUnitToken
+        if not ns.IsSecret(owner) and type(owner) == "string" and owner:match("^nameplate%d+$")
+            and not units[owner] and C_NamePlate.GetNamePlateForUnit(owner) == custom.nameplate then
+            return custom.nameplate, owner, custom
+        end
+    end
+    return plate, unit, custom
+end
+
+local function FindBar(plate, custom)
     if type(custom) == "table" and custom.nameplate == plate and custom.health then
         -- A hidden Ellesmere bar still owns this plate.
         if Visible(custom.health) then return custom, custom.health, custom.health, false, true end
@@ -431,11 +447,11 @@ local function MatchPlateAppearance(w, host)
     MatchPlateAlpha(w, host)
 end
 
-local function DrawUnit(unit, entry, ready, duration)
-    local plate = C_NamePlate.GetNamePlateForUnit(unit)
+local function DrawUnit(registeredUnit, entry, ready, duration)
+    local plate, unit, custom = FindPlate(registeredUnit)
     if not Visible(plate) or PlainCall(UnitCanAttack, "player", unit) == false
         or PlainCall(UnitIsDead, unit) == true or IsTotem(unit, entry) then return end
-    local host, bar, anchor, iconOnly, ellesmere = FindBar(plate, unit)
+    local host, bar, anchor, iconOnly, ellesmere = FindBar(plate, custom)
     if not host then return end
     local percentUnit, maxHealth, health
     if ns.rule.percent then
@@ -461,7 +477,7 @@ local function DrawUnit(unit, entry, ready, duration)
             pcall(hooksecurefunc, host, "SetAlphaFromBoolean", FollowEllesmereAlpha)
             pcall(host.HookScript, host, "OnHide", FollowEllesmereHide)
         end
-    elseif w.unit ~= unit or w.parent ~= parent then
+    elseif w.unit ~= registeredUnit or w.parent ~= parent then
         Hide(w)
         if w.parent ~= parent then
             w.root:SetParent(parent)
@@ -469,8 +485,8 @@ local function DrawUnit(unit, entry, ready, duration)
         end
         w.bar = nil
     end
-    if entry.overlay and entry.overlay ~= w and entry.overlay.unit == unit then Hide(entry.overlay) end
-    entry.overlay, w.unit = w, unit
+    if entry.overlay and entry.overlay ~= w and entry.overlay.unit == registeredUnit then Hide(entry.overlay) end
+    entry.overlay, w.unit = w, registeredUnit
     if ellesmere then MatchPlateAppearance(w, host) end
     ns.DrawOverlay(w, bar, anchor, maxHealth, health, ns.threshold, ns.texture, ready, iconOnly, ellesmere,
         duration, nil, percentUnit)

@@ -466,6 +466,45 @@ return function(addon)
     live.AddPlate("nameplate1")
     Check(created.root.strata == "MEDIUM" and created.marker.strata == "BACKGROUND" and created.window.strata == "MEDIUM",
         "reused Ellesmere nameplate restores the overlay strata")
+
+    local swapped, swapState, native, _, _, _, swapEnv = NewContext(addon)
+    local swapHost = swapEnv.CreateFrame("Frame", nil, native)
+    swapHost.nameplate = native
+    swapHost.health = swapEnv.CreateFrame("StatusBar", nil, swapHost)
+    swapEnv.EllesmereNameplates_NS = { plates = { nameplate1 = swapHost } }
+    native.namePlateUnitToken = "nameplate1"
+    swapEnv.C_NamePlate.GetNamePlateForUnit = function(unit)
+        if unit == native.namePlateUnitToken then return native end
+    end
+    swapEnv.UnitHealth = function(unit)
+        assert(unit == native.namePlateUnitToken, "health read for the old nameplate token")
+        return swapState.health
+    end
+    swapEnv.UnitCreatureType = function(unit)
+        return nil, unit == "nameplate3" and 11 or 1
+    end
+    local swapOverlay
+    local createSwap = swapped.CreateOverlay
+    swapped.CreateOverlay = function(...)
+        swapOverlay = createSwap(...)
+        return swapOverlay
+    end
+    swapState.maximum, swapState.health = 1, 1
+    swapped.AddPlate("nameplate1")
+    Check(swapOverlay and swapOverlay.window:IsVisible(), "the 1 HP enemy starts with the icon visible")
+    native.namePlateUnitToken, swapHost.unit = "nameplate2", "nameplate2"
+    swapped.RefreshPlates()
+    Check(swapOverlay.window:IsVisible() and swapOverlay.anchor == swapHost.health,
+        "Ellesmere's visible bar keeps the icon after a token swap without an add event")
+    native.namePlateUnitToken, swapHost.unit = "nameplate3", "nameplate3"
+    swapped.RefreshPlates()
+    Check(not swapOverlay.window:IsVisible(), "the rebound token is classified independently")
+    native.namePlateUnitToken, swapHost.unit = "nameplate2", "nameplate2"
+    swapped.RefreshPlates()
+    Check(swapOverlay.window:IsVisible(), "the next enemy does not inherit the totem exclusion")
+    swapped.RemovePlate("nameplate1")
+    Check(not swapOverlay.window:IsVisible(), "original remove event clears the rebound overlay")
+
     local summons, summon, _, _, Private = NewContext(addon)
     local summonOverlay
     local createSummon = summons.CreateOverlay

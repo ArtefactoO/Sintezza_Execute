@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Keep the execute icon attached to a visible EllesmereUI nameplate when its unit token changes without a new nameplate event.
+
 ## 1.6.4
 
 - Use the shared solid preview background and thin border for the nameplate sample.
