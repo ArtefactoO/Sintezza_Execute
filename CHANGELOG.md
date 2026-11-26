@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.6.5
 
 - Keep the execute icon attached to a visible EllesmereUI nameplate when its unit token changes without a new nameplate event.
 
